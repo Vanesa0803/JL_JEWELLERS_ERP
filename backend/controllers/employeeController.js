@@ -1,34 +1,33 @@
 const db = require("../config/db");
 
 // CREATE
-const createEmployee = async (req, res) => {
+exports.createEmployee = async (req, res) => {
   try {
-    const { name, email, phone, role } = req.body;
+    const { name, email, phone, department, salary } = req.body;
 
-    await db.query(
-      "INSERT INTO employees (name, email, phone, role) VALUES (?, ?, ?, ?)",
-      [name, email, phone, role]
+    const [result] = await db.query(
+      "INSERT INTO employees (name, email, phone, department, salary) VALUES (?, ?, ?, ?, ?)",
+      [name, email, phone, department, salary]
     );
 
-    res.json({ message: "Employee created ✅" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: error.message });
+    res.json({ message: "Employee created ✅", id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// GET ALL
-const getEmployees = async (req, res) => {
+// READ ALL
+exports.getEmployees = async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM employees");
     res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// GET ONE
-const getEmployeeById = async (req, res) => {
+// READ ONE
+exports.getEmployeeById = async (req, res) => {
   try {
     const [rows] = await db.query(
       "SELECT * FROM employees WHERE id = ?",
@@ -36,45 +35,36 @@ const getEmployeeById = async (req, res) => {
     );
 
     res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 // UPDATE
-const updateEmployee = async (req, res) => {
+exports.updateEmployee = async (req, res) => {
   try {
-    const { name, email, phone, role } = req.body;
+    const { name, email, phone, role, salary } = req.body;
 
     await db.query(
-      "UPDATE employees SET name=?, email=?, phone=?, role=? WHERE id=?",
-      [name, email, phone, role, req.params.id]
+      "UPDATE employees SET name=?, email=?, phone=?, department=?, salary=? WHERE id=?",
+      [name, email, phone, department, salary, req.params.id]
     );
 
     res.json({ message: "Employee updated ✅" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 // DELETE
-const deleteEmployee = async (req, res) => {
+exports.deleteEmployee = async (req, res) => {
   try {
-    await db.query(
-      "DELETE FROM employees WHERE id=?",
-      [req.params.id]
-    );
+    await db.query("DELETE FROM employees WHERE id = ?", [
+      req.params.id,
+    ]);
 
-    res.json({ message: "Employee deleted ✅" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ message: "Employee deleted ❌" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-};
-
-module.exports = {
-  createEmployee,
-  getEmployees,
-  getEmployeeById,
-  updateEmployee,
-  deleteEmployee
 };
