@@ -21,7 +21,9 @@ const calculateBillItem = ({
 }) => {
 
     // Step 1
-    const metal_value = Number((net_weight * rate).toFixed(2));
+    const metal_value = Number(
+        (net_weight * rate).toFixed(2)
+    );
 
     // Step 2
     const making_charge = Number(
@@ -35,16 +37,16 @@ const calculateBillItem = ({
 
     // Step 4
     const gst_metal = Number(
-        (metal_value * 0.03).toFixed(2)
+        ((metal_value * 3) / 100).toFixed(2)
     );
 
     // Step 5
     const gst_making = Number(
-        (making_charge * 0.05).toFixed(2)
+        ((making_charge * 5) / 100).toFixed(2)
     );
 
     // Step 6
-    const line_total = Number(
+    const total_payable = Number(
         (
             taxable_value +
             gst_metal +
@@ -54,21 +56,31 @@ const calculateBillItem = ({
     );
 
     return {
+
         quantity,
+
         net_weight,
+
         rate,
 
         metal_value,
+
         making_charge,
+
+        making_charge_percent,
+
         taxable_value,
 
         gst_metal,
+
         gst_making,
 
         discount,
 
-        line_total
+        line_total: total_payable
+
     };
+
 };
 
 module.exports = {

@@ -1,5 +1,6 @@
 const { calculateBillItem } = require("../utils/billingCalculator");
 const billModel = require("../models/billModel");
+const ledgerService = require("./ledgerService");
 
 /**
  * Get All Bills
@@ -101,6 +102,22 @@ const createBill = async (billData) => {
     };
 
     const result = await billModel.createBill(completeBill);
+
+    await ledgerService.createLedgerEntry({
+
+        customer_id: completeBill.customer_id,
+
+        bill_id: result.bill_id,
+
+        transaction_type: "Bill",
+
+        debit: completeBill.grand_total,
+
+        credit: 0,
+
+        remarks: "Bill Generated"
+
+    });
 
     const historyQuery = `
         INSERT INTO bill_history

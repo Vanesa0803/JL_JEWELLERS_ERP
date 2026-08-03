@@ -1,5 +1,7 @@
 const paymentModel = require("../models/paymentModel");
 const billModel = require("../models/billModel");
+const ledgerService = require("./ledgerService");
+const cashBookService = require("./cashBookService");
 
 const recordPayment = async (paymentData) => {
 
@@ -110,6 +112,52 @@ const recordPayment = async (paymentData) => {
 
     );
 
+    const isCash = paymentData.payments.some(
+        payment => payment.payment_method === "Cash"
+    );
+
+    if (isCash) {
+
+        const cashAmount = paymentData.payments
+            .filter(payment => payment.payment_method === "Cash")
+            .reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+        await cashBookService.createCashEntry({
+
+            transaction_type: "Cash In",
+
+            source: "Bill Payment",
+
+            reference_id: paymentId,
+
+            customer_id: bill.customer_id,
+
+            amount: cashAmount,
+
+            remarks: "Bill Payment Received",
+
+            created_by: paymentData.created_by || 1
+
+        });
+
+    }
+    
+    await ledgerService.createLedgerEntry({
+
+        customer_id: bill.customer_id,
+
+        bill_id: bill.bill_id,
+
+        transaction_type: "Payment",
+
+        debit: 0,
+
+        credit: totalAmount,
+
+        remarks: "Bill Payment"
+
+    });
+
     // Update bill payment status
     await billModel.updateBillStatus(
         bill.bill_id,
@@ -176,36 +224,60 @@ const createAdvancePayment = async (paymentData) => {
 
     }
 
-    return await paymentModel.createAdvancePayment({
+    const result = await paymentModel.createAdvancePayment({
+
+        customer_id: paymentData.customer_id,
+        total_amount: paymentData.amount,
+        payment_method: paymentData.payment_method,
+        reference_number: paymentData.reference_number,
+        created_by: paymentData.created_by
+
+    });
+
+    if (paymentData.payment_method === "Cash") {
+
+        await cashBookService.createCashEntry({
+
+            transaction_type: "Cash In",
+
+            source: "Advance Payment",
+
+            reference_id: result.payment_id,
+
+            customer_id: paymentData.customer_id,
+
+            amount: paymentData.amount,
+
+            remarks: "Advance Payment Received",
+
+            created_by: paymentData.created_by || 1
+
+        });
+
+    }
+
+    await ledgerService.createLedgerEntry({
 
         customer_id: paymentData.customer_id,
 
-        total_amount: paymentData.amount,
+        bill_id: null,
 
-        payment_method: paymentData.payment_method,
+        transaction_type: "Payment",
 
-        reference_number:
-            paymentData.reference_number,
+        debit: 0,
 
-        created_by:
-            paymentData.created_by
+        credit: paymentData.amount,
+
+        remarks: "Advance Payment"
 
     });
+    return result;
 
 };
 
 const getCustomerAdvance = async (customerId) => {
 
     return await paymentModel.getCustomerAdvance(customerId);
-
-    const advances = await paymentModel.getCustomerAdvance(
-        bill.customer_id
-    );
-
-    console.log("Bill Customer:", bill.customer_id);
-    console.log("Advances:", advances);
-    console.log("Payment ID received:", paymentId);
-
 };
 
 const adjustAdvanceToBill = async (billId, paymentId) => {
@@ -268,7 +340,22 @@ const adjustAdvanceToBill = async (billId, paymentId) => {
         ]
 
     );
-    
+    await ledgerService.createLedgerEntry({
+
+        customer_id: bill.customer_id,
+
+        bill_id: bill.bill_id,
+
+        transaction_type: "Adjustment",
+
+        debit: 0,
+
+        credit: Number(advance.total_amount),
+
+        remarks: "Advance Adjusted"
+
+    });
+
     let paymentStatus = "Partial";
 
     if (remainingAmount === 0) {
@@ -307,6 +394,11 @@ const createRefund = async (refundData) => {
         await paymentModel.getPaymentById(
             refundData.payment_id
         );
+
+    if (!payment) {
+        throw new Error("Payment not found.");
+    }
+
     const alreadyRefunded =
         await paymentModel.getTotalRefundedAmount(
             payment.payment_id
@@ -368,13 +460,8 @@ const createRefund = async (refundData) => {
     if (
         totalRefundAfterThis >=
         Number(payment.total_amount)
-    )
-    {
+    ){
         paymentStatus = "Pending";
-    }{
-
-        paymentStatus = "Pending";
-
     }
 
     await paymentModel.updatePaymentStatus(
@@ -396,6 +483,40 @@ const createRefund = async (refundData) => {
         );
 
     }
+
+    await ledgerService.createLedgerEntry({
+
+        customer_id: payment.customer_id,
+
+        bill_id: payment.bill_id,
+
+        transaction_type: "Refund",
+
+        debit: Number(refundData.refund_amount),
+
+        credit: 0,
+
+        remarks: "Refund Issued"
+
+    });
+
+    await cashBookService.createCashEntry({
+
+        transaction_type: "Cash Out",
+
+        source: "Refund",
+
+        reference_id: payment.payment_id,
+
+        customer_id: payment.customer_id,
+
+        amount: Number(refundData.refund_amount),
+
+        remarks: "Refund Issued",
+
+        created_by: 1
+
+    });
 
     return {
 
