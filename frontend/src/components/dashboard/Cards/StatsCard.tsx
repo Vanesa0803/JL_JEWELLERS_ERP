@@ -6,7 +6,6 @@ interface StatsCardProps {
   value: string;
   subtitle: string;
   icon: ReactNode;
-  iconBg: string;
 }
 
 const StatsCard = ({
@@ -14,28 +13,48 @@ const StatsCard = ({
   value,
   subtitle,
   icon,
-  iconBg,
 }: StatsCardProps) => {
   return (
-    <div className="bg-white border border-[#E9E1D5] rounded-3xl px-6 py-5 shadow-sm hover:shadow-md transition-all">
+    <div
+      className="
+      bg-white
+      rounded-2xl
+      border
+      border-[#E8DFD2]
+      shadow-sm
+      hover:shadow-md
+      transition-all
+      duration-300
 
-      <div className="flex items-start justify-between">
+      h-[128px]
+      w-full
 
-        <div className="flex flex-col">
+      px-6
+      py-5
+      "
+    >
+      <div className="flex justify-between items-start h-full">
 
-          <p className="text-[15px] font-medium text-[#8C8C8C]">
+        {/* LEFT */}
+
+        <div className="flex flex-col justify-between h-full">
+
+          <p className="text-[15px] font-semibold text-[#6B7280]">
             {title}
           </p>
 
-          <h2 className="mt-3 text-[40px] leading-none font-semibold text-[#3C1414]">
+          <h2 className="text-[24px] font-bold text-[#3C1414] leading-none">
             {value}
           </h2>
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="flex items-center gap-2">
 
-            <TrendingUp size={15} className="text-green-600" />
+            <TrendingUp
+              size={15}
+              className="text-green-600"
+            />
 
-            <span className="text-[14px] text-green-600 font-medium">
+            <span className="text-[15px] font-medium text-green-600">
               {subtitle}
             </span>
 
@@ -43,14 +62,26 @@ const StatsCard = ({
 
         </div>
 
+        {/* RIGHT */}
+
         <div
-          className={`w-16 h-16 rounded-2xl flex items-center justify-center ${iconBg}`}
+          className="
+          w-12
+          h-12
+
+          rounded-xl
+
+          flex
+          items-center
+          justify-center
+
+          text-[#3C1414]
+        "
         >
           {icon}
         </div>
 
       </div>
-
     </div>
   );
 };

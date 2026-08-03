@@ -1,41 +1,29 @@
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import StatsGrid from "../../components/dashboard/Cards/StatsGrid";
-import SalesChart from "../../components/dashboard/Charts/SalesChart";
-import QuickActionCard from "../../components/dashboard/Cards/QuickActionCard";
+import DashboardGrid from "../../components/dashboard/Cards/DashboardGrid";
+import KPISection from "../../components/dashboard/sections/KPISection";
+import SalesOverviewSection from "../../components/dashboard/sections/SalesOverviewSection";
 
 const Dashboard = () => {
   return (
-   <DashboardLayout>
+    <DashboardLayout>
 
-  <div className="mb-14">
-    <h1 className="text-[35px] font-bold text-[#3C1414]">
-      Dashboard
-    </h1>
+      <section className="mb-12">
 
-    <p className="mt-2 text-lg text-gray-600">
-      Welcome back, Vanshika! 👋
-    </p>
-  </div>
+  <h1 className="text-[44px] font-bold tracking-tight text-[#3C1414]">
+    Dashboard
+  </h1>
 
-  {/* KPI CARDS */}
-<div className="mt-10">
-  <StatsGrid />
-  </div>
+  <p className="mt-2 text-[16px] text-[#7B7B7B]">
+    Welcome back, Vanshika! 👋
+  </p>
 
-  {/* SECOND ROW */}
+</section>
 
-  <div className="grid grid-cols-4 gap-7 mb-10">
-  <div className="col-span-8">
-    <SalesChart />
-  </div>
+    <KPISection />
 
-  <div className="col-span-4">
-    <QuickActionCard />
-  </div>
+    <SalesOverviewSection />
 
-</div>
-
-</DashboardLayout>
+    </DashboardLayout>
   );
 };
 

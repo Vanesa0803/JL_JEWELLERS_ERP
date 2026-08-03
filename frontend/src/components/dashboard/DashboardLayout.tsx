@@ -9,19 +9,29 @@ interface Props {
 
 const DashboardLayout = ({ children }: Props) => {
   return (
-    <div className="flex min-h-screen bg-[#FCFAF6]">
+    <div className="flex h-screen bg-[#F8F6F2] overflow-hidden">
+
+      {/* Sidebar */}
 
       <Sidebar />
 
-      <div className="flex-1 flex flex-col">
+      {/* Main Area */}
+
+      <div className="flex flex-1 flex-col overflow-hidden">
 
         <Navbar />
 
-        <main className="flex-1 px-12 py-10 overflow-auto">
-  <div className="max-w-[1500px] mx-auto">
-    {children}
-  </div>
-</main>
+        {/* Dashboard Content */}
+
+        <main className="flex-1 overflow-y-auto">
+
+          <div className="mx-auto w-full max-w-[1600px] px-10 py-8">
+
+            {children}
+
+          </div>
+
+        </main>
 
       </div>
 
