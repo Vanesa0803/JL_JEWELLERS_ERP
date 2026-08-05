@@ -94,9 +94,51 @@ const getCashFlowSummary = async () => {
 
 };
 
+const getBankAccounts = async () => {
+
+    return await financeModel.getBankAccounts();
+
+};
+
+const getGSTSummary = async () => {
+
+    return await financeModel.getGSTSummary();
+
+};
+
+const getProfitLoss = async () => {
+
+    return await financeModel.getProfitLoss();
+
+};
+
+const getBalanceSheet = async () => {
+
+    return await financeModel.getBalanceSheet();
+
+};
+
+const getCashFlow = async () => {
+
+    return await financeModel.getCashFlow();
+
+};
+
+const getOutstandingPayables = async () => {
+
+    return await financeModel.getOutstandingPayables();
+
+};
+
 module.exports = {
 
     getProfitLossSummary,
-    getCashFlowSummary
+    getCashFlowSummary,
+    getBankAccounts,
+    getGSTSummary,
+    getProfitLoss,
+    getBalanceSheet,
+    getCashFlow,
+    getOutstandingPayables
 
 };

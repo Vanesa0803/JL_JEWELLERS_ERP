@@ -94,6 +94,6 @@ module.exports = {
 
     createIncome,
     getIncomeById,
-    getIncomeHistory
+    getIncomeHistory,
 
 };

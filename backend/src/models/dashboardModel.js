@@ -368,13 +368,15 @@ const getInventoryDashboard = () => {
                     END
                 ) AS low_stock_products,
 
-                SUM(
-                    CASE
-                        WHEN i.available_quantity = 0
-                        THEN 1
-                        ELSE 0
-                    END
-                ) AS out_of_stock_products
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN available_quantity = 0 THEN 1
+                            ELSE 0
+                        END
+                    ),
+                0
+                ) AS out_of_stock
 
                 ,
 

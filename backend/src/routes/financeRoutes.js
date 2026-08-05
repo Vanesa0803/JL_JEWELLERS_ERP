@@ -21,4 +21,34 @@ router.get(
 
 );
 
+router.get(
+    "/bank-accounts",
+    financeController.getBankAccounts
+);
+
+router.get(
+    "/gst-summary",
+    financeController.getGSTSummary
+);
+
+router.get(
+    "/profit-loss",
+    financeController.getProfitLoss
+);
+
+router.get(
+    "/balance-sheet",
+    financeController.getBalanceSheet
+);
+
+router.get(
+    "/cash-flow",
+    financeController.getCashFlow
+);
+
+router.get(
+    "/outstanding-payables",
+    financeController.getOutstandingPayables
+);
+
 module.exports = router;

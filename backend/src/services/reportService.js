@@ -25,11 +25,25 @@ const getLedgerReport = async (filters) => {
 
 };
 
+const getPaymentReport = async(filters)=>{
+
+    return await reportModel.getPaymentReport(filters);
+
+};
+
+const getInventoryReport = async (filters) => {
+
+    return await reportModel.getInventoryReport(filters);
+
+};
+
 module.exports = {
 
     getSalesReport,
     getGSTReport,
     getCustomerReport,
-    getLedgerReport
+    getLedgerReport,
+    getPaymentReport,
+    getInventoryReport
 
 };

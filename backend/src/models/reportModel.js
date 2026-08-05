@@ -390,11 +390,241 @@ const getLedgerReport = (filters) => {
 
 };
 
+const getPaymentReport = (filters) => {
+
+    return new Promise((resolve, reject) => {
+
+        let query = `
+
+            SELECT
+
+                p.payment_id,
+
+                b.invoice_number,
+
+                CONCAT(
+                    c.first_name,
+                    ' ',
+                    COALESCE(c.last_name,'')
+                ) AS customer,
+
+                p.payment_date,
+
+                pd.payment_method,
+
+                pd.amount,
+
+                pd.reference_number,
+
+                p.payment_type,
+
+                p.payment_status
+
+            FROM payments p
+
+            JOIN payment_details pd
+            ON p.payment_id = pd.payment_id
+
+            LEFT JOIN bills b
+            ON p.bill_id = b.bill_id
+
+            LEFT JOIN customers c
+            ON b.customer_id = c.customer_id
+
+            WHERE 1=1
+
+        `;
+
+        const values = [];
+
+        if(filters.from_date){
+
+            query +=
+            " AND DATE(p.payment_date)>=?";
+
+            values.push(filters.from_date);
+
+        }
+
+        if(filters.to_date){
+
+            query +=
+            " AND DATE(p.payment_date)<=?";
+
+            values.push(filters.to_date);
+
+        }
+
+        if(filters.payment_method){
+
+            query +=
+            " AND pd.payment_method=?";
+
+            values.push(filters.payment_method);
+
+        }
+
+        if(filters.payment_status){
+
+            query +=
+            " AND p.payment_status=?";
+
+            values.push(filters.payment_status);
+
+        }
+
+        query +=
+        " ORDER BY p.payment_date DESC";
+
+        connection.query(query, values, (err,result)=>{
+
+            if(err){
+
+                return reject(err);
+
+            }
+
+            resolve(result);
+
+        });
+
+    });
+
+};
+
+const getInventoryReport = (filters) => {
+
+    return new Promise((resolve, reject) => {
+
+        let query = `
+            SELECT
+                p.product_id,
+                p.product_code,
+                p.product_name,
+
+                c.category_name,
+                sc.subcategory_name,
+
+                mt.metal_name,
+                pr.purity_name,
+
+                i.available_quantity,
+                i.reserved_quantity,
+                i.minimum_stock,
+                i.maximum_stock,
+                i.stock_location,
+
+                CASE
+                    WHEN i.available_quantity = 0 THEN 'Out of Stock'
+                    WHEN i.available_quantity <= i.minimum_stock THEN 'Low Stock'
+                    ELSE 'In Stock'
+                END AS stock_status
+
+            FROM inventory i
+
+            INNER JOIN products p
+                ON i.product_id = p.product_id
+
+            LEFT JOIN categories c
+                ON p.category_id = c.category_id
+
+            LEFT JOIN subcategories sc
+                ON p.subcategory_id = sc.subcategory_id
+
+            LEFT JOIN metal_types mt
+                ON p.metal_type_id = mt.metal_type_id
+
+            LEFT JOIN purity pr
+                ON p.purity_id = pr.purity_id
+
+            WHERE 1=1
+        `;
+
+        const values = [];
+
+        if(filters.category_id){
+
+            query += " AND p.category_id=?";
+
+            values.push(filters.category_id);
+
+        }
+
+        if(filters.metal_type_id){
+
+            query += " AND p.metal_type_id=?";
+
+            values.push(filters.metal_type_id);
+
+        }
+
+        if(filters.purity_id){
+
+            query += " AND p.purity_id=?";
+
+            values.push(filters.purity_id);
+
+        }
+
+        if(filters.product_id){
+
+            query += " AND p.product_id=?";
+
+            values.push(filters.product_id);
+
+        }
+
+        if(filters.stock_status){
+
+            if(filters.stock_status === "Low Stock"){
+
+                query += " AND i.available_quantity<=i.minimum_stock AND i.available_quantity>0";
+
+            }
+
+            if(filters.stock_status === "Out of Stock"){
+
+                query += " AND i.available_quantity=0";
+
+            }
+
+            if(filters.stock_status === "In Stock"){
+
+                query += " AND i.available_quantity>i.minimum_stock";
+
+            }
+
+        }
+
+        query += `
+            ORDER BY
+            p.product_name ASC
+        `;
+
+        connection.query(query, values, (err, result)=>{
+
+            if(err){
+
+                return reject(err);
+
+            }
+
+            resolve(result);
+
+        });
+
+    });
+
+};
+
+
 module.exports = {
 
     getSalesReport,
     getGSTReport,
     getCustomerReport,
-    getLedgerReport
+    getLedgerReport,
+    getPaymentReport,
+    getInventoryReport
 
 };

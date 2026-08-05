@@ -25,4 +25,17 @@ router.get(
     reportController.getLedgerReport
 );
 
+router.get(
+    "/payments",
+    reportController.getPaymentReport
+);
+
+router.get("/inventory", reportController.getInventoryReport);
+
+router.get("/export/pdf", reportController.exportPDF);
+
+router.get("/export/excel", reportController.exportExcel);
+
+router.get("/export/csv", reportController.exportCSV);
+
 module.exports = router;
