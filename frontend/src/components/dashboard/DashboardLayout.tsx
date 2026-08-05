@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-
 import Sidebar from "./Sidebar/Sidebar";
-import Navbar from "./Navbar/Navbar";
 
 interface Props {
   children: ReactNode;
@@ -9,32 +7,25 @@ interface Props {
 
 const DashboardLayout = ({ children }: Props) => {
   return (
-    <div className="flex h-screen bg-[#F8F6F2] overflow-hidden">
-
-      {/* Sidebar */}
-
+    <div className="flex h-screen bg-[#F8F6F2]">
       <Sidebar />
 
-      {/* Main Area */}
+      {/* Scrollable Content */}
+   <main className="flex-1 overflow-y-auto bg-[#F8F6F2]">
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="p-10">
 
-        <Navbar />
-
-        {/* Dashboard Content */}
-
-        <main className="flex-1 overflow-y-auto">
-
-          <div className="mx-auto w-full max-w-[1600px] px-10 py-8">
+        <section
+            className="w-full rounded-3xl"
+        >
 
             {children}
 
-          </div>
+        </section>
 
-        </main>
+    </div>
 
-      </div>
-
+</main>
     </div>
   );
 };
