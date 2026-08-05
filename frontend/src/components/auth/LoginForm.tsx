@@ -34,7 +34,10 @@ const LoginForm = () => {
       navigate("/dashboard");
     } catch (error: any) {
       setServerError(
-        error.response?.data?.message || "Something went wrong."
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          "Something went wrong."
       );
     } finally {
       setLoading(false);
