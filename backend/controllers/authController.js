@@ -4,12 +4,14 @@ const jwt = require("jsonwebtoken");
 
 const login = async (req, res) => {
   try {
-    console.log("STEP 1: Request hit");
-
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
     const [users] = await db.query(
-      "SELECT * FROM users WHERE email = ?",
+      "SELECT user_id, name, email, password, role, status FROM users WHERE email = ? LIMIT 1",
       [email]
     );
 
@@ -19,21 +21,60 @@ const login = async (req, res) => {
 
     const user = users[0];
 
+    if (user.status !== "active") {
+      return res.status(403).json({ message: "User account is inactive" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user.id }, "secret", {
-      expiresIn: "1d"
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: "JWT_SECRET is missing in .env" });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.user_id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user.user_id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
 
-    res.json({ message: "Login successful", token });
-
   } catch (error) {
-    console.log("❌ LOGIN ERROR:", error);
-    res.status(500).json({ error: error.message });
+    console.error("LOGIN ERROR:", error);
+
+    if (
+      error.code === "ECONNREFUSED" ||
+      error.code === "PROTOCOL_CONNECTION_LOST" ||
+      error.code === "ER_ACCESS_DENIED_ERROR" ||
+      error.code === "ER_BAD_DB_ERROR"
+    ) {
+      return res.status(500).json({
+        message: "Database connection failed. Check that MySQL is running and your .env DB settings are correct.",
+        code: error.code,
+      });
+    }
+
+    res.status(500).json({
+      message: error.message || "Login failed because of a server error.",
+    });
   }
 };
 
@@ -51,8 +92,10 @@ const register = async (req, res) => {
     res.json({ message: "User registered successfully" });
 
   } catch (error) {
-    console.log("❌ REGISTER ERROR:", error);
-    res.status(500).json({ error: error.message });
+    console.error("REGISTER ERROR:", error);
+    res.status(500).json({
+      message: error.message || "Registration failed because of a server error.",
+    });
   }
 };
 
