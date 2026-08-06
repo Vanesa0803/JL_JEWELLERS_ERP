@@ -6,18 +6,27 @@ interface SidebarItemProps {
   active?: boolean;
 }
 
-const SidebarItem = ({ icon, title, active = false }: SidebarItemProps) => {
+const SidebarItem = ({
+  icon,
+  title,
+  active = false,
+}: SidebarItemProps) => {
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
+      className={`flex w-full items-center gap-4 rounded-lg px-5 py-4 transition-all duration-300 ${
         active
-          ? "bg-[#D4AF37] text-[#2A0E06]"
-          : "text-white/85 hover:bg-white/10 hover:text-white"
+          ? "bg-[#D4AF37] text-white shadow-lg"
+          : "text-gray-300 hover:bg-[#252525] hover:text-white"
       }`}
     >
-      <span className="flex h-5 w-5 items-center justify-center">{icon}</span>
-      <span>{title}</span>
+      <span className="flex h-5 w-5 items-center justify-center">
+        {icon}
+      </span>
+
+      <span className="font-medium">
+        {title}
+      </span>
     </button>
   );
 };

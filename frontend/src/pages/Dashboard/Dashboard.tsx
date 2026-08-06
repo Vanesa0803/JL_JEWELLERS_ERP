@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom";
+import DashboardLayout from "../../components/dashboard/DashboardLayout";
+import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -9,24 +11,25 @@ const Dashboard = () => {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F8F6F2] px-6">
-      <section className="w-full max-w-3xl rounded-2xl bg-white p-10 text-center shadow-xl">
-        <p className="text-sm font-semibold uppercase tracking-wide text-[#B8860B]">
-          JL Jewellers ERP
-        </p>
-        <h1 className="mt-4 text-4xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-4 text-gray-600">
-          Login successful. Your session token has been saved.
-        </p>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mt-8 rounded-xl bg-[#2A0E06] px-6 py-3 font-semibold text-white transition hover:bg-[#4A1D12]"
-        >
-          Logout
-        </button>
-      </section>
-    </main>
+    <DashboardLayout>
+      <DashboardHeader />
+
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-4xl font-bold text-[#2A0E06]">
+            Business Overview
+          </h2>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-xl bg-[#2A0E06] px-5 py-2 font-semibold text-white transition hover:bg-[#4A1D12]"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 };
 
