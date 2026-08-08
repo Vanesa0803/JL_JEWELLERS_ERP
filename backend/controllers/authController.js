@@ -2,6 +2,7 @@ const db = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+<<<<<<< HEAD
 // =============================
 // 🟢 REGISTER USER
 // =============================
@@ -60,10 +61,24 @@ exports.login = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase();
+=======
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+>>>>>>> 6b863e9379fd2130897b72a33e228bee9e1c3ea0
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     const [users] = await db.query(
+<<<<<<< HEAD
       "SELECT * FROM users WHERE email=?",
       [normalizedEmail]
+=======
+      "SELECT user_id, name, email, password, role, status FROM users WHERE email = ? LIMIT 1",
+      [email]
+>>>>>>> 6b863e9379fd2130897b72a33e228bee9e1c3ea0
     );
 
     if (users.length === 0) {
@@ -74,6 +89,10 @@ exports.login = async (req, res) => {
 
     const user = users[0];
 
+    if (user.status !== "active") {
+      return res.status(403).json({ message: "User account is inactive" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -82,6 +101,7 @@ exports.login = async (req, res) => {
       });
     }
 
+<<<<<<< HEAD
     const token = jwt.sign(
       {
         id: user.id,
@@ -89,6 +109,64 @@ exports.login = async (req, res) => {
       },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
+=======
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: "JWT_SECRET is missing in .env" });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.user_id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user.user_id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
+
+    if (
+      error.code === "ECONNREFUSED" ||
+      error.code === "PROTOCOL_CONNECTION_LOST" ||
+      error.code === "ER_ACCESS_DENIED_ERROR" ||
+      error.code === "ER_BAD_DB_ERROR"
+    ) {
+      return res.status(500).json({
+        message: "Database connection failed. Check that MySQL is running and your .env DB settings are correct.",
+        code: error.code,
+      });
+    }
+
+    res.status(500).json({
+      message: error.message || "Login failed because of a server error.",
+    });
+  }
+};
+
+const register = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+      [name, email, hashedPassword]
+>>>>>>> 6b863e9379fd2130897b72a33e228bee9e1c3ea0
     );
 
     res.json({
@@ -101,6 +179,7 @@ exports.login = async (req, res) => {
       },
     });
 
+<<<<<<< HEAD
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ error: "Server error ❌" });
@@ -262,3 +341,17 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: "Server error ❌" });
   }
 };
+=======
+  } catch (error) {
+    console.error("REGISTER ERROR:", error);
+    res.status(500).json({
+      message: error.message || "Registration failed because of a server error.",
+    });
+  }
+};
+
+module.exports = {
+  login,
+  register
+};
+>>>>>>> 6b863e9379fd2130897b72a33e228bee9e1c3ea0
