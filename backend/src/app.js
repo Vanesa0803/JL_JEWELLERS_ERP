@@ -14,6 +14,12 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const limiter = require("./middleware/rateLimiter");
 const exportRoutes = require("./routes/exportRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const customerOrderRoutes = require("./routes/customerOrderRoutes");
+const makerRoutes = require("./routes/makerRoutes");
+const makerAssignmentRoutes = require("./routes/makerAssignmentRoutes");
+const goldSchemeRoutes = require("./routes/goldSchemeRoutes");
+const financialSecurityRoutes = require("./routes/financialSecurityRoutes");
 
 const app = express();
 
@@ -34,6 +40,12 @@ app.use("/api/finance", financeRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/export", exportRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use( "/api/customer-orders", customerOrderRoutes);
+app.use("/api/makers", makerRoutes);
+app.use("/api/maker-assignments", makerAssignmentRoutes);
+app.use("/api/gold-schemes", goldSchemeRoutes);
+app.use("/api/financial-security", financialSecurityRoutes);
 
 app.get("/", (req, res) => {
     res.send("🚀 JL Jewellers ERP Backend Running");

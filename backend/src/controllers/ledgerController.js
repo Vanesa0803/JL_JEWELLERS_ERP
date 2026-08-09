@@ -131,11 +131,114 @@ const getOutstandingBalance = async (req,res)=>{
 
 };
 
+const createSupplierLedgerEntry = async (req, res) => {
+
+    try {
+
+        const result =
+            await ledgerService.createSupplierLedgerEntry(
+                req.body
+            );
+
+        res.status(201).json({
+
+            success: true,
+
+            data: result
+
+        });
+
+    }
+    catch (error) {
+
+        res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+
+const getSupplierLedger = async (req, res) => {
+
+    try {
+
+        const result =
+            await ledgerService.getSupplierLedger(
+                req.params.supplier_id
+            );
+
+        res.status(200).json({
+
+            success: true,
+
+            count: result.length,
+
+            data: result
+
+        });
+
+    }
+    catch (error) {
+
+        res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+
+const getSupplierOutstandingBalance = async (req, res) => {
+
+    try {
+
+        const result =
+            await ledgerService.getSupplierOutstandingBalance(
+                req.params.supplier_id
+            );
+
+        res.status(200).json({
+
+            success: true,
+
+            data: result
+
+        });
+
+    }
+    catch (error) {
+
+        res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
 module.exports = {
 
     createLedgerEntry,
     getCustomerLedger,
     getLedgerStatement,
-    getOutstandingBalance
+    getOutstandingBalance,
+    createSupplierLedgerEntry,
+    getSupplierLedger,
+    getSupplierOutstandingBalance
 
 };

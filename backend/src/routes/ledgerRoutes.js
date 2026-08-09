@@ -2,9 +2,18 @@ const express = require("express");
 
 const router = express.Router();
 
-const ledgerController = require("../controllers/ledgerController");
+const ledgerController =
+    require("../controllers/ledgerController");
 
-router.post("/", ledgerController.createLedgerEntry);
+
+// ===============================
+// CUSTOMER LEDGER
+// ===============================
+
+router.post(
+    "/",
+    ledgerController.createLedgerEntry
+);
 
 router.get(
     "/:customer_id/statement",
@@ -20,5 +29,26 @@ router.get(
     "/:customer_id",
     ledgerController.getCustomerLedger
 );
+
+
+// ===============================
+// SUPPLIER LEDGER
+// ===============================
+
+router.post(
+    "/supplier",
+    ledgerController.createSupplierLedgerEntry
+);
+
+router.get(
+    "/supplier/:supplier_id/outstanding",
+    ledgerController.getSupplierOutstandingBalance
+);
+
+router.get(
+    "/supplier/:supplier_id",
+    ledgerController.getSupplierLedger
+);
+
 
 module.exports = router;

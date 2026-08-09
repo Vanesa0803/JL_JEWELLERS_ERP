@@ -69,9 +69,12 @@ const getIncomeById = async (incomeId) => {
 
 };
 
-const getIncomeHistory = async () => {
+const getIncomeHistory = async (fromDate, toDate) => {
 
-    return await incomeModel.getIncomeHistory();
+    return await incomeModel.getIncomeHistory(
+        fromDate,
+        toDate
+    );
 
 };
 

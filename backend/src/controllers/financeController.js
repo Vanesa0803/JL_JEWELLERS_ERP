@@ -95,14 +95,16 @@ const getGSTSummary = async (req, res) => {
 
     try {
 
-        const data =
-            await financeService.getGSTSummary();
+        const { from_date, to_date } = req.query;
+
+        const data = await financeService.getGSTSummary(
+            from_date,
+            to_date
+        );
 
         res.json({
-
             success: true,
             data
-
         });
 
     }
@@ -110,41 +112,37 @@ const getGSTSummary = async (req, res) => {
     catch (error) {
 
         res.status(500).json({
-
             success: false,
             message: error.message
-
         });
 
     }
 
 };
 
-const getProfitLoss = async (req,res)=>{
+const getProfitLoss = async (req, res) => {
 
-    try{
+    try {
 
-        const data =
-        await financeService.getProfitLoss();
+        const { from_date, to_date } = req.query;
+
+        const data = await financeService.getProfitLoss(
+            from_date,
+            to_date
+        );
 
         res.json({
-
-            success:true,
-
+            success: true,
             data
-
         });
 
     }
 
-    catch(error){
+    catch (error) {
 
         res.status(500).json({
-
-            success:false,
-
-            message:error.message
-
+            success: false,
+            message: error.message
         });
 
     }
@@ -155,8 +153,103 @@ const getBalanceSheet = async (req, res) => {
 
     try {
 
+        const { from_date, to_date } = req.query;
+
         const data =
-            await financeService.getBalanceSheet();
+            await financeService.getBalanceSheet(
+                from_date,
+                to_date
+            );
+
+        res.json({
+
+            success: true,
+            data
+
+        });
+
+    }
+    catch (error) {
+
+        res.status(500).json({
+
+            success: false,
+            message: error.message
+
+        });
+
+    }
+
+};
+
+const getCashFlow = async (req, res) => {
+
+    try {
+
+        const { from_date, to_date } = req.query;
+
+        const data = await financeService.getCashFlow(
+            from_date,
+            to_date
+        );
+
+        res.json({
+            success: true,
+            data
+        });
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+
+    }
+
+};
+
+const getOutstandingPayables = async (req, res) => {
+
+    try {
+
+        const { from_date, to_date } = req.query;
+
+        const data =
+            await financeService.getOutstandingPayables(
+                from_date,
+                to_date
+            );
+
+        res.json({
+
+            success: true,
+            data
+
+        });
+
+    }
+    catch (error) {
+
+        res.status(500).json({
+
+            success: false,
+            message: error.message
+
+        });
+
+    }
+
+};
+
+const getFinanceDashboard = async (req, res) => {
+
+    try {
+
+        const data =
+            await financeService.getFinanceDashboard();
 
         res.json({
 
@@ -182,67 +275,7 @@ const getBalanceSheet = async (req, res) => {
 
 };
 
-const getCashFlow = async (req,res)=>{
 
-    try{
-
-        const data =
-        await financeService.getCashFlow();
-
-        res.json({
-
-            success:true,
-
-            data
-
-        });
-
-    }
-
-    catch(error){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:error.message
-
-        });
-
-    }
-
-};
-
-const getOutstandingPayables = async (req,res)=>{
-
-    try{
-
-        const data =
-        await financeService.getOutstandingPayables();
-
-        res.json({
-
-            success:true,
-
-            data
-
-        });
-
-    }
-
-    catch(error){
-
-        res.status(500).json({
-
-            success:false,
-
-            message:error.message
-
-        });
-
-    }
-
-};
 
 module.exports = {
 
@@ -253,6 +286,7 @@ module.exports = {
     getProfitLoss,
     getBalanceSheet,
     getCashFlow,
-    getOutstandingPayables
+    getOutstandingPayables,
+    getFinanceDashboard
 
 };

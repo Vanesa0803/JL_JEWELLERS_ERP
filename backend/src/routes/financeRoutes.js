@@ -3,42 +3,25 @@ const express = require("express");
 const router = express.Router();
 
 const financeController =
-require("../controllers/financeController");
+    require("../controllers/financeController");
 
+
+// Finance Summary Reports
 router.get(
-
-    "/profit-loss",
-
+    "/summary/profit-loss",
     financeController.getProfitLossSummary
-
 );
 
 router.get(
-
-    "/cash-flow",
-
+    "/summary/cash-flow",
     financeController.getCashFlowSummary
-
 );
 
-router.get(
-    "/bank-accounts",
-    financeController.getBankAccounts
-);
 
-router.get(
-    "/gst-summary",
-    financeController.getGSTSummary
-);
-
+// Detailed Finance Reports
 router.get(
     "/profit-loss",
     financeController.getProfitLoss
-);
-
-router.get(
-    "/balance-sheet",
-    financeController.getBalanceSheet
 );
 
 router.get(
@@ -47,8 +30,28 @@ router.get(
 );
 
 router.get(
+    "/balance-sheet",
+    financeController.getBalanceSheet
+);
+
+router.get(
+    "/gst-summary",
+    financeController.getGSTSummary
+);
+
+router.get(
+    "/bank-accounts",
+    financeController.getBankAccounts
+);
+
+router.get(
     "/outstanding-payables",
     financeController.getOutstandingPayables
+);
+
+router.get(
+    "/dashboard",
+    financeController.getFinanceDashboard
 );
 
 module.exports = router;

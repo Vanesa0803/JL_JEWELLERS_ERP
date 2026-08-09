@@ -154,12 +154,139 @@ const getOutstandingBalance = (customerId) => {
 
 };
 
+const createSupplierLedgerEntry = (ledgerData) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            INSERT INTO supplier_ledger
+            (
+                supplier_id,
+                transaction_type,
+                debit,
+                credit,
+                balance,
+                remarks
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+
+        connection.query(
+            query,
+            [
+                ledgerData.supplier_id,
+                ledgerData.transaction_type,
+                ledgerData.debit,
+                ledgerData.credit,
+                ledgerData.balance,
+                ledgerData.remarks || null
+            ],
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result);
+
+            }
+        );
+
+    });
+
+};
+
+
+const getSupplierLedger = (supplierId) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            SELECT *
+            FROM supplier_ledger
+            WHERE supplier_id = ?
+            ORDER BY ledger_id ASC
+        `;
+
+        connection.query(
+            query,
+            [supplierId],
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result);
+
+            }
+        );
+
+    });
+
+};
+
+
+const getSupplierOutstandingBalance = (supplierId) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            SELECT
+
+                s.supplier_id,
+
+                s.supplier_name,
+
+                COALESCE(
+                    SUM(sl.debit),
+                    0
+                ) AS total_debit,
+
+                COALESCE(
+                    SUM(sl.credit),
+                    0
+                ) AS total_credit
+
+            FROM suppliers s
+
+            LEFT JOIN supplier_ledger sl
+                ON s.supplier_id = sl.supplier_id
+
+            WHERE s.supplier_id = ?
+
+            GROUP BY
+                s.supplier_id,
+                s.supplier_name
+        `;
+
+        connection.query(
+            query,
+            [supplierId],
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result[0]);
+
+            }
+        );
+
+    });
+
+};
+
 module.exports = {
 
     createLedgerEntry,
     getCustomerLedger,
     getLedgerStatement,
-    getOutstandingBalance
+    getOutstandingBalance,
+    createSupplierLedgerEntry,
+    getSupplierLedger,
+    getSupplierOutstandingBalance
 
 };
 

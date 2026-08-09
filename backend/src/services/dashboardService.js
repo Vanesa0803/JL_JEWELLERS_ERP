@@ -26,33 +26,34 @@ const getDashboardSummary = async () => {
         summary: {
 
             today_sales:
-                Number(summary.today_sales),
+                Number(summary.today_sales || 0),
 
             today_bills:
-                Number(summary.today_bills),
+                Number(summary.today_bills || 0),
 
             revenue:
-                Number(summary.revenue),
+                Number(summary.revenue || 0),
 
             profit:
-                Number(summary.profit),
+                Number(summary.profit || 0),
 
             cash_flow:
-                Number(summary.cash_flow),
+                Number(summary.cash_flow || 0),
 
-            pending_orders: 0,
+            pending_orders: 
+                Number(summary.pending_orders || 0),
 
             pending_payments:
-                Number(summary.pending_payments),
+                Number(summary.pending_payments || 0),
 
-            inventory_value:
-                Number(summary.inventory_quantity),
+            inventory_quantity:
+                Number(summary.inventory_quantity || 0),
 
             gold_rate:
-                Number(summary.gold_rate),
+                Number(summary.gold_rate || 0),
 
             silver_rate:
-                Number(summary.silver_rate)
+                Number(summary.silver_rate || 0)
 
         },
 
@@ -71,15 +72,28 @@ const getDashboardSummary = async () => {
 
 };
 
-const getSalesAnalytics = async () => {
+const getSalesAnalytics = async (fromDate, toDate) => {
 
-    return dashboardModel.getSalesAnalytics();
+    const data =
+        await dashboardModel.getSalesAnalytics(
+            fromDate,
+            toDate
+        );
+
+    return data.map(row => ({
+
+        date: row.date,
+
+        sales: Number(row.sales)
+
+    }));
 
 };
 
 const getInventoryDashboard = async () => {
 
-    const data = await dashboardModel.getInventoryDashboard();
+    const data =
+        await dashboardModel.getInventoryDashboard();
 
     return {
 
@@ -88,6 +102,9 @@ const getInventoryDashboard = async () => {
 
         total_stock:
             Number(data.total_stock),
+
+        inventory_value:
+            Number(data.inventory_value),
 
         low_stock_products:
             Number(data.low_stock_products),

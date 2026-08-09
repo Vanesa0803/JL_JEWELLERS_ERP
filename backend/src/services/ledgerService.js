@@ -178,11 +178,149 @@ const getOutstandingBalance = async (customerId) => {
 
 };
 
+const createSupplierLedgerEntry = async (ledgerData) => {
+
+    const previousEntries =
+        await ledgerModel.getSupplierLedger(
+            ledgerData.supplier_id
+        );
+
+    let previousBalance = 0;
+
+    if (previousEntries.length > 0) {
+
+        previousBalance =
+            Number(
+                previousEntries[
+                    previousEntries.length - 1
+                ].balance
+            );
+
+    }
+
+    const debit =
+        Number(ledgerData.debit || 0);
+
+    const credit =
+        Number(ledgerData.credit || 0);
+
+    const newBalance =
+        Number(
+            (
+                previousBalance +
+                debit -
+                credit
+            ).toFixed(2)
+        );
+
+    await ledgerModel.createSupplierLedgerEntry({
+
+        supplier_id:
+            ledgerData.supplier_id,
+
+        transaction_type:
+            ledgerData.transaction_type,
+
+        debit,
+
+        credit,
+
+        balance: newBalance,
+
+        remarks:
+            ledgerData.remarks || null
+
+    });
+
+    return {
+
+        supplier_id:
+            ledgerData.supplier_id,
+
+        transaction_type:
+            ledgerData.transaction_type,
+
+        debit,
+
+        credit,
+
+        balance: newBalance,
+
+        message:
+            "Supplier ledger entry created successfully."
+
+    };
+
+};
+
+
+const getSupplierLedger = async (supplierId) => {
+
+    return await ledgerModel.getSupplierLedger(
+        supplierId
+    );
+
+};
+
+
+const getSupplierOutstandingBalance = async (supplierId) => {
+
+    const supplier =
+        await ledgerModel.getSupplierOutstandingBalance(
+            supplierId
+        );
+
+    if (!supplier) {
+
+        throw new Error(
+            "Supplier not found."
+        );
+
+    }
+
+    const totalDebit =
+        Number(supplier.total_debit);
+
+    const totalCredit =
+        Number(supplier.total_credit);
+
+    const outstanding =
+        Number(
+            (
+                totalDebit -
+                totalCredit
+            ).toFixed(2)
+        );
+
+    return {
+
+        supplier_id:
+            supplier.supplier_id,
+
+        supplier_name:
+            supplier.supplier_name,
+
+        total_debit:
+            totalDebit,
+
+        total_credit:
+            totalCredit,
+
+        outstanding_balance:
+            outstanding
+
+    };
+
+};
+
 module.exports = {
 
     createLedgerEntry,
     getCustomerLedger,
     getLedgerStatement,
-    getOutstandingBalance
+    getOutstandingBalance,
+    createSupplierLedgerEntry,
+    getSupplierLedger,
+    getSupplierOutstandingBalance
 
 };

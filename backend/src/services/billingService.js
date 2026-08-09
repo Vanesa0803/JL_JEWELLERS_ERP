@@ -299,11 +299,11 @@ const cancelBill = async (billId) => {
                 billId,
                 "Cancelled",
                 "bill_status",
-                "Active",
+                "Completed",
                 "Cancelled",
                 1,
                 1,
-                "Bill cancelled successfully."
+                "Completed bill cancelled successfully."
             ],
 
             (err) => {
@@ -322,7 +322,7 @@ const cancelBill = async (billId) => {
 
     return {
         success: true,
-        message: "Bill cancelled successfully."
+        message: "Completed bill cancelled successfully."
     };
 
 };

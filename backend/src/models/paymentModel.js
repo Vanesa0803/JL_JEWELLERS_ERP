@@ -187,6 +187,37 @@ const getPendingPayment = (billId) => {
 
 };
 
+const getPaidAmountForBill = (billId) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            SELECT
+                COALESCE(SUM(total_amount), 0) AS paid_amount
+            FROM payments
+            WHERE bill_id = ?
+            AND payment_type = 'Bill Payment'
+            AND payment_status IN ('Partial', 'Completed')
+        `;
+
+        connection.query(
+            query,
+            [billId],
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(Number(result[0].paid_amount));
+
+            }
+        );
+
+    });
+
+};
+
 const createAdvancePayment = (paymentData) => {
 
     return new Promise((resolve, reject) => {
@@ -780,6 +811,7 @@ module.exports = {
     createPaymentDetails,
     updateBillPaymentStatus,
     getPendingPayment,
+    getPaidAmountForBill,
     createAdvancePayment,
     getCustomerAdvance,
     adjustAdvancePayment,

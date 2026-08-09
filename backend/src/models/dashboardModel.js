@@ -5,35 +5,34 @@ const getDashboardSummary = () => {
     return new Promise((resolve, reject) => {
 
         const query = `
+
             SELECT
 
                 (
-                    SELECT COALESCE(SUM(grand_total),0)
+                    SELECT COALESCE(SUM(grand_total), 0)
                     FROM bills
-                    WHERE DATE(bill_date)=CURDATE()
-                    AND bill_status='Completed'
+                    WHERE DATE(bill_date) = CURDATE()
+                    AND bill_status = 'Completed'
+                    AND deleted_at IS NULL
                 ) AS today_sales,
 
                 (
                     SELECT COUNT(*)
                     FROM bills
-                    WHERE DATE(bill_date)=CURDATE()
+                    WHERE DATE(bill_date) = CURDATE()
+                    AND deleted_at IS NULL
                 ) AS today_bills,
 
                 (
-                    SELECT COALESCE(SUM(amount),0)
+                    SELECT COALESCE(SUM(amount), 0)
                     FROM income
                 ) AS revenue,
 
                 (
                     SELECT
-                        COALESCE(
-                            (SELECT SUM(amount) FROM income),0
-                        )
+                        COALESCE((SELECT SUM(amount) FROM income), 0)
                         -
-                        COALESCE(
-                            (SELECT SUM(amount) FROM expenses),0
-                        )
+                        COALESCE((SELECT SUM(amount) FROM expenses), 0)
                 ) AS profit,
 
                 (
@@ -41,11 +40,13 @@ const getDashboardSummary = () => {
                         COALESCE(
                             SUM(
                                 CASE
-                                    WHEN transaction_type='Cash In'
+                                    WHEN transaction_type = 'Cash In'
                                     THEN amount
                                     ELSE -amount
                                 END
-                            ),0)
+                            ),
+                            0
+                        )
                     FROM cash_book
                 ) AS cash_flow,
 
@@ -53,23 +54,68 @@ const getDashboardSummary = () => {
                     SELECT
                         COALESCE(
                             SUM(
-                                b.grand_total - COALESCE(p.total_paid, 0)
+                                b.grand_total -
+                                COALESCE(p.total_paid, 0)
                             ),
-                        0)
+                            0
+                        )
                     FROM bills b
+
                     LEFT JOIN (
+
                         SELECT
                             bill_id,
                             SUM(total_amount) AS total_paid
+
                         FROM payments
+
+                        WHERE payment_type = 'Bill Payment'
+                        AND payment_status IN ('Partial', 'Completed')
+
                         GROUP BY bill_id
+
                     ) p
+
                     ON b.bill_id = p.bill_id
+
                     WHERE b.payment_status <> 'Completed'
+                    AND b.bill_status <> 'Cancelled'
+                    AND b.deleted_at IS NULL
+
                 ) AS pending_payments,
 
                 (
-                    SELECT COALESCE(SUM(available_quantity),0)
+                    SELECT
+                        COUNT(*)
+                    FROM customer_orders
+                    WHERE order_status IN (
+                        'Pending',
+                        'Approved',
+                        'In Production',
+                        'Ready'
+                    )
+                ) AS pending_orders,
+
+                (
+                    SELECT COALESCE(
+                        SUM(
+                            i.available_quantity *
+                            COALESCE(
+                                (
+                                    SELECT MAX(gri.purchase_rate)
+                                    FROM goods_receipt_items gri
+                                    WHERE gri.product_id = i.product_id
+                                ),
+                                0
+                            )
+                        ),
+                        0
+                    )
+                    FROM inventory i
+                ) AS inventory_value,
+
+                (
+                    SELECT COALESCE(SUM(COALESCE(available_quantity, 0)), 0)
                     FROM inventory
                 ) AS inventory_quantity,
 
@@ -77,6 +123,7 @@ const getDashboardSummary = () => {
                     SELECT rate
                     FROM metal_rates
                     WHERE metal_type = 'Gold'
+                    ORDER BY rate_id DESC
                     LIMIT 1
                 ) AS gold_rate,
 
@@ -84,16 +131,16 @@ const getDashboardSummary = () => {
                     SELECT rate
                     FROM metal_rates
                     WHERE metal_type = 'Silver'
+                    ORDER BY rate_id DESC
                     LIMIT 1
                 ) AS silver_rate
+
         `;
 
         connection.query(query, (err, result) => {
 
             if (err) {
-
                 return reject(err);
-
             }
 
             resolve(result[0]);
@@ -110,19 +157,25 @@ const getSalesOverview = () => {
     return new Promise((resolve, reject) => {
 
         const query = `
+
             SELECT
 
                 DATE(bill_date) AS date,
 
-                SUM(grand_total) AS sales
+                COALESCE(SUM(grand_total), 0) AS sales
 
             FROM bills
 
             WHERE bill_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
 
+            AND bill_status = 'Completed'
+
+            AND deleted_at IS NULL
+
             GROUP BY DATE(bill_date)
 
-            ORDER BY DATE(bill_date);
+            ORDER BY DATE(bill_date)
+
         `;
 
         connection.query(query, (err, result) => {
@@ -165,6 +218,8 @@ const getRecentBills = () => {
             JOIN customers c
 
             ON b.customer_id = c.customer_id
+
+            WHERE b.deleted_at IS NULL
 
             ORDER BY b.bill_date DESC
 
@@ -285,28 +340,40 @@ const getTopSellingProducts = () => {
     return new Promise((resolve, reject) => {
 
         const query = `
+
             SELECT
 
                 p.product_name,
 
-                SUM(bi.quantity) AS total_sold
+                COALESCE(SUM(bi.quantity), 0) AS total_sold
 
             FROM bill_items bi
 
+            JOIN bills b
+                ON bi.bill_id = b.bill_id
+
             JOIN products p
+                ON bi.product_id = p.product_id
 
-            ON bi.product_id=p.product_id
+            WHERE b.bill_status = 'Completed'
 
-            GROUP BY bi.product_id
+            AND b.deleted_at IS NULL
+
+            GROUP BY
+                bi.product_id,
+                p.product_name
 
             ORDER BY total_sold DESC
 
             LIMIT 5
+
         `;
 
         connection.query(query, (err, result) => {
 
-            if(err) return reject(err);
+            if (err) {
+                return reject(err);
+            }
 
             resolve(result);
 
@@ -316,26 +383,64 @@ const getTopSellingProducts = () => {
 
 };
 
-const getSalesAnalytics = () => {
+const getSalesAnalytics = (fromDate, toDate) => {
 
     return new Promise((resolve, reject) => {
 
-        const query = `
+        let query = `
+
             SELECT
+
                 DATE(bill_date) AS date,
-                SUM(grand_total) AS sales
+
+                COALESCE(SUM(grand_total), 0) AS sales
+
             FROM bills
-            GROUP BY DATE(bill_date)
-            ORDER BY DATE(bill_date);
+
+            WHERE bill_status = 'Completed'
+            AND deleted_at IS NULL
+
         `;
 
-        connection.query(query, (err, result) => {
+        const params = [];
 
-            if (err) return reject(err);
+        if (fromDate) {
 
-            resolve(result);
+            query += ` AND DATE(bill_date) >= ? `;
 
-        });
+            params.push(fromDate);
+
+        }
+
+        if (toDate) {
+
+            query += ` AND DATE(bill_date) <= ? `;
+
+            params.push(toDate);
+
+        }
+
+        query += `
+
+            GROUP BY DATE(bill_date)
+
+            ORDER BY DATE(bill_date)
+
+        `;
+
+        connection.query(
+            query,
+            params,
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result);
+
+            }
+        );
 
     });
 

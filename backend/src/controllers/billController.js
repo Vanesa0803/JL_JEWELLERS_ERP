@@ -64,7 +64,7 @@ const cancelBill = async (req, res) => {
     try {
 
         const result = await billingService.cancelBill(
-            req.params.id
+            req.params.bill_id
         );
 
         res.status(200).json(result);

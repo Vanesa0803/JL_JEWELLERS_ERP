@@ -230,76 +230,92 @@ const getBillById = (billId) => {
 
         const billQuery = `
             SELECT
-                bill_id,
-                invoice_number,
-                bill_date,
-                customer_name,
-                employee_name,
-                subtotal,
-                total_discount,
-                total_gst,
-                grand_total,
-                payment_status,
-                bill_status
-            FROM invoice_summary
-            WHERE bill_id = ?;
+                s.bill_id,
+                s.invoice_number,
+                s.bill_date,
+                s.customer_name,
+                s.employee_name,
+                s.subtotal,
+                s.total_discount,
+                s.total_gst,
+                s.grand_total,
+                s.payment_status,
+                s.bill_status
+
+            FROM invoice_summary s
+
+            INNER JOIN bills b
+                ON s.bill_id = b.bill_id
+
+            WHERE s.bill_id = ?
+            AND b.deleted_at IS NULL;
         `;
 
-        connection.query(billQuery, [billId], (err, billResult) => {
-
-            if (err) {
-                return reject(err);
-            }
-
-            if (billResult.length === 0) {
-                return resolve(null);
-            }
-
-            const itemQuery = `
-                SELECT
-                    bi.bill_item_id,
-                    p.product_name,
-                    bi.metal_type,
-                    bi.purity,
-                    bi.quantity,
-                    bi.net_weight,
-                    bi.rate,
-                    bi.metal_value,
-                    bi.making_charge_percent,
-                    bi.making_charge,
-                    bi.taxable_value,
-                    bi.gst_metal,
-                    bi.gst_making,
-                    bi.discount,
-                    bi.line_total
-                FROM bill_items bi
-                JOIN products p
-                    ON bi.product_id = p.product_id
-                WHERE bi.bill_id = ?;
-            `;
-
-            connection.query(itemQuery, [billId], (err, itemResult) => {
+        connection.query(
+            billQuery,
+            [billId],
+            (err, billResult) => {
 
                 if (err) {
                     return reject(err);
                 }
 
-                resolve({
+                if (billResult.length === 0) {
+                    return resolve(null);
+                }
 
-                    bill: billResult[0],
+                const itemQuery = `
+                    SELECT
+                        bi.bill_item_id,
+                        p.product_name,
+                        bi.metal_type,
+                        bi.purity,
+                        bi.quantity,
+                        bi.net_weight,
+                        bi.rate,
+                        bi.metal_value,
+                        bi.making_charge_percent,
+                        bi.making_charge,
+                        bi.taxable_value,
+                        bi.gst_metal,
+                        bi.gst_making,
+                        bi.discount,
+                        bi.line_total
 
-                    items: itemResult
+                    FROM bill_items bi
 
-                });
+                    JOIN products p
+                        ON bi.product_id = p.product_id
 
-            });
+                    WHERE bi.bill_id = ?;
+                `;
 
-        });
+                connection.query(
+                    itemQuery,
+                    [billId],
+                    (err, itemResult) => {
+
+                        if (err) {
+                            return reject(err);
+                        }
+
+                        resolve({
+
+                            bill: billResult[0],
+
+                            items: itemResult
+
+                        });
+
+                    }
+                );
+
+            }
+        );
 
     });
 
 };
-
 /**
  * Update Bill Status
  */
@@ -351,7 +367,8 @@ const cancelBill = (billId) => {
                 bill_status = 'Cancelled',
                 updated_at = CURRENT_TIMESTAMP
             WHERE bill_id = ?
-            AND bill_status <> 'Cancelled'
+            AND bill_status = 'Completed'
+            AND deleted_at IS NULL
         `;
 
         connection.query(query, [billId], (err, result) => {
@@ -361,7 +378,13 @@ const cancelBill = (billId) => {
             }
 
             if (result.affectedRows === 0) {
-                return reject(new Error("Bill not found or already cancelled."));
+
+                return reject(
+                    new Error(
+                        "Only active Completed bills can be cancelled."
+                    )
+                );
+
             }
 
             resolve(result);

@@ -49,47 +49,51 @@ const recordPayment = async (paymentData) => {
 
     }
 
-    // Calculate total payment
-    const totalAmount = paymentData.payments.reduce(
-
+    // Calculate current payment amount
+    const currentPaymentAmount = paymentData.payments.reduce(
         (sum, payment) => sum + Number(payment.amount),
-
         0
-
     );
+
     const grandTotal = Number(bill.grand_total);
+
+    // Get previous successful payments for this bill
+    const previousPayments = await paymentModel.getPaidAmountForBill(
+        bill.bill_id
+    );
+
+    const totalPaid = Number(previousPayments) + currentPaymentAmount;
 
     let paymentStatus;
 
-    if (totalAmount === grandTotal) {
+    if (totalPaid > grandTotal) {
+
+        throw new Error(
+            "Payment amount cannot exceed pending bill amount."
+        );
+
+    }
+    else if (totalPaid === grandTotal) {
 
         paymentStatus = "Completed";
 
     }
-    else if (totalAmount > 0 && totalAmount < grandTotal) {
+    else if (totalPaid > 0) {
 
         paymentStatus = "Partial";
 
     }
-    else if (totalAmount === 0) {
+    else {
 
         paymentStatus = "Pending";
 
-    }
-    else {
-
-        throw new Error(
-            "Payment amount cannot exceed bill amount."
-        );
-
-    }
-
+    }   
     // Create payment record
     const paymentResult = await paymentModel.createPayment({
 
         bill_id: paymentData.bill_id,
 
-        total_amount: totalAmount,
+        total_amount: currentPaymentAmount,
 
         payment_status: paymentStatus,
 
@@ -152,7 +156,7 @@ const recordPayment = async (paymentData) => {
 
         debit: 0,
 
-        credit: totalAmount,
+        credit: currentPaymentAmount,
 
         remarks: "Bill Payment"
 
@@ -171,7 +175,7 @@ const recordPayment = async (paymentData) => {
 
         payment_id: paymentId,
 
-        total_amount: totalAmount,
+        total_amount: currentPaymentAmount,
 
         message: "Payment recorded successfully."
 
@@ -300,12 +304,22 @@ const adjustAdvanceToBill = async (billId, paymentId) => {
         throw new Error("Advance payment not found.");
     }
 
+    const previousPaidAmount =
+        await paymentModel.getPaidAmountForBill(bill.bill_id);
+
     const remainingAmount = Number(
         (
             Number(bill.grand_total) -
+            Number(previousPaidAmount) -
             Number(advance.total_amount)
         ).toFixed(2)
     );
+
+    if (remainingAmount < 0) {
+        throw new Error(
+            "Advance amount exceeds the pending bill amount."
+        );
+    }
 
     await paymentModel.adjustAdvancePayment(paymentId);
 

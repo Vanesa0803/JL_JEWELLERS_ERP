@@ -66,7 +66,13 @@ const getExpenseHistory = async (req, res) => {
 
     try {
 
-        const result = await expenseService.getExpenseHistory();
+        const { from_date, to_date } = req.query;
+
+        const result =
+            await expenseService.getExpenseHistory(
+                from_date,
+                to_date
+            );
 
         res.status(200).json({
 

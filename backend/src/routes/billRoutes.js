@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
+const verifyFinancialPin = require("../middleware/verifyFinancialPin");
 const billController = require("../controllers/billController");
+const requireFinancialPinForCompletedBill = require("../middleware/requireFinancialPinForCompletedBill");
 
 router.get("/", billController.getAllBills);
 
@@ -15,9 +17,9 @@ router.get("/:id", billController.getBillById);
 
 router.post("/", billController.createBill);
 
-router.put("/:id", billController.updateBill);
+router.put("/:id", requireFinancialPinForCompletedBill, billController.updateBill);
 
-router.put("/:id/cancel", billController.cancelBill);
+router.put("/:bill_id/cancel", verifyFinancialPin, billController.cancelBill);
 
 router.put("/:id/status", billController.updateBillStatus);
 

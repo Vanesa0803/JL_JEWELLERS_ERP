@@ -70,25 +70,62 @@ const getExpenseById = (expenseId) => {
 
 };
 
-const getExpenseHistory = () => {
+const getExpenseHistory = (fromDate, toDate) => {
 
     return new Promise((resolve, reject) => {
 
-        const query = `
+        let query = `
             SELECT *
             FROM expenses
+        `;
+
+        let params = [];
+
+        if (fromDate && toDate) {
+
+            query += `
+                WHERE expense_date BETWEEN ? AND ?
+            `;
+
+            params.push(fromDate, toDate);
+
+        }
+        else if (fromDate) {
+
+            query += `
+                WHERE expense_date >= ?
+            `;
+
+            params.push(fromDate);
+
+        }
+        else if (toDate) {
+
+            query += `
+                WHERE expense_date <= ?
+            `;
+
+            params.push(toDate);
+
+        }
+
+        query += `
             ORDER BY expense_date DESC
         `;
 
-        connection.query(query, (err, result) => {
+        connection.query(
+            query,
+            params,
+            (err, result) => {
 
-            if (err) {
-                return reject(err);
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result);
+
             }
-
-            resolve(result);
-
-        });
+        );
 
     });
 

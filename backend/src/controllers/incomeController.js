@@ -62,17 +62,38 @@ const getIncomeById = async (req, res) => {
 
 const getIncomeHistory = async (req, res) => {
 
-    const result = await incomeService.getIncomeHistory();
+    try {
 
-    res.json({
+        const { from_date, to_date } = req.query;
 
-        success: true,
+        const result =
+            await incomeService.getIncomeHistory(
+                from_date,
+                to_date
+            );
 
-        count: result.length,
+        res.json({
 
-        data: result
+            success: true,
 
-    });
+            count: result.length,
+
+            data: result
+
+        });
+
+    }
+    catch (error) {
+
+        res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
 
 };
 

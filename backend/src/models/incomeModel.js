@@ -68,22 +68,61 @@ const getIncomeById = (incomeId) => {
 
 };
 
-const getIncomeHistory = () => {
+const getIncomeHistory = (fromDate, toDate) => {
 
     return new Promise((resolve, reject) => {
 
+        let query = `
+            SELECT *
+            FROM income
+        `;
+
+        let params = [];
+
+        if (fromDate && toDate) {
+
+            query += `
+                WHERE income_date BETWEEN ? AND ?
+            `;
+
+            params.push(fromDate, toDate);
+
+        }
+        else if (fromDate) {
+
+            query += `
+                WHERE income_date >= ?
+            `;
+
+            params.push(fromDate);
+
+        }
+        else if (toDate) {
+
+            query += `
+                WHERE income_date <= ?
+            `;
+
+            params.push(toDate);
+
+        }
+
+        query += `
+            ORDER BY income_date DESC
+        `;
+
         connection.query(
-
-            "SELECT * FROM income ORDER BY income_date DESC",
-
+            query,
+            params,
             (err, result) => {
 
-                if (err) return reject(err);
+                if (err) {
+                    return reject(err);
+                }
 
                 resolve(result);
 
             }
-
         );
 
     });

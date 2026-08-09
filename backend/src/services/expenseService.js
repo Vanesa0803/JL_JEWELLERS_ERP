@@ -71,9 +71,12 @@ const getExpenseById = async (expenseId) => {
 
 };
 
-const getExpenseHistory = async () => {
+const getExpenseHistory = async (fromDate, toDate) => {
 
-    return await expenseModel.getExpenseHistory();
+    return await expenseModel.getExpenseHistory(
+        fromDate,
+        toDate
+    );
 
 };
 

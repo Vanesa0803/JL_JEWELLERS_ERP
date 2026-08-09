@@ -27,19 +27,30 @@ const getSalesAnalytics = async (req, res) => {
 
     try {
 
+        const { from_date, to_date } = req.query;
+
         const data =
-            await dashboardService.getSalesAnalytics();
+            await dashboardService.getSalesAnalytics(
+                from_date,
+                to_date
+            );
 
         res.json({
+
             success: true,
+
             data
+
         });
 
     } catch (error) {
 
         res.status(500).json({
+
             success: false,
+
             message: error.message
+
         });
 
     }
