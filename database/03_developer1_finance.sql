@@ -106,3 +106,18 @@ AFTER created_at;
 
 ALTER TABLE income
 CHANGE COLUMN received_date income_date DATE;
+
+CREATE TABLE financial_security (
+    security_id INT PRIMARY KEY AUTO_INCREMENT,
+
+    pin_hash VARCHAR(255) NOT NULL,
+
+    max_discount_percent DECIMAL(5,2) DEFAULT 10.00,
+
+    max_rate_change_percent DECIMAL(5,2) DEFAULT 2.00,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP
+);
