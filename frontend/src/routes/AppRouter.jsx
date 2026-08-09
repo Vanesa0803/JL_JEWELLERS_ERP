@@ -9,22 +9,32 @@ import DashboardLayout from "../layouts/DashboardLayout";
 
 import Login from "../pages/auth/Login";
 import Dashboard from "../pages/dashboard/Dashboard";
+
 import EditCustomer from "../pages/customers/EditCustomer";
+import CustomerDetails from "../pages/customers/CustomerDetails";
+import Customers from "../pages/customers/Customers";
+
+import Suppliers from "../pages/suppliers/Suppliers";
 
 import CreateBill from "../pages/billing/CreateBill";
-import CancelOrder from "../pages/orders/CancelOrder";
-import Payments from "../pages/payments/Payments";
-import CustomerDetails from "../pages/customers/CustomerDetails";
-import Delivery from "../pages/orders/Delivery";
-import Customers from "../pages/customers/Customers";
-import Orders from "../pages/orders/Orders";
-import CreateOrder from "../pages/orders/CreateOrder";
-import UpdateOrder from "../pages/orders/UpdateOrder";
 import AllBills from "../pages/billing/AllBills";
 import DraftBills from "../pages/billing/DraftBills";
 import CompletedBills from "../pages/billing/CompletedBills";
 import CancelledBills from "../pages/billing/CancelledBills";
 import InvoiceHistory from "../pages/billing/InvoiceHistory";
+
+import Orders from "../pages/orders/Orders";
+import CreateOrder from "../pages/orders/CreateOrder";
+import UpdateOrder from "../pages/orders/UpdateOrder";
+import CancelOrder from "../pages/orders/CancelOrder";
+import Delivery from "../pages/orders/Delivery";
+
+import Payments from "../pages/payments/Payments";
+
+
+/* =========================================================
+   PLACEHOLDER PAGE
+========================================================= */
 
 const PlaceholderPage = ({ title }) => {
   return (
@@ -40,12 +50,19 @@ const PlaceholderPage = ({ title }) => {
   );
 };
 
+
+/* =========================================================
+   APP ROUTER
+========================================================= */
+
 const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* ================= PUBLIC ================= */}
+        {/* =================================================
+            PUBLIC
+        ================================================= */}
 
         <Route
           path="/login"
@@ -53,7 +70,9 @@ const AppRouter = () => {
         />
 
 
-        {/* ================= DASHBOARD ================= */}
+        {/* =================================================
+            DASHBOARD
+        ================================================= */}
 
         <Route
           path="/dashboard"
@@ -65,162 +84,178 @@ const AppRouter = () => {
         />
 
 
-       {/* ================= BILLING ================= */}
-
-<Route
-  path="/billing"
-  element={
-    <DashboardLayout>
-      <CreateBill />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/billing/all"
-  element={
-    <DashboardLayout>
-      <AllBills />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/billing/drafts"
-  element={
-    <DashboardLayout>
-      <DraftBills />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/billing/completed"
-  element={
-    <DashboardLayout>
-      <CompletedBills />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/billing/cancelled"
-  element={
-    <DashboardLayout>
-      <CancelledBills />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/billing/history"
-  element={
-    <DashboardLayout>
-      <InvoiceHistory />
-    </DashboardLayout>
-  }
-/>
-
-
-        {/* ================= OTHER ERP MODULES ================= */}
-
-  <Route
-  path="/orders"
-  element={
-    <DashboardLayout>
-      <Orders />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/orders/create"
-  element={
-    <DashboardLayout>
-      <CreateOrder />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/orders/update"
-  element={
-    <DashboardLayout>
-      <UpdateOrder />
-    </DashboardLayout>
-  }
-/>
-
-<Route
-  path="/orders/cancel"
-  element={
-    <DashboardLayout>
-      <CancelOrder />
-    </DashboardLayout>
-  }
-/>
-<Route
-  path="/orders/delivery"
-  element={
-    <DashboardLayout>
-      <Delivery />
-    </DashboardLayout>
-  }
-/>
-
-
-{/* other modules */}
-
-<Route
-  path="*"
-  element={<Navigate to="/dashboard" replace />}
-/>
-
-<Route
-  path="/payments"
-  element={
-    <DashboardLayout>
-      <Payments />
-    </DashboardLayout>
-  }
-/>
+        {/* =================================================
+            BILLING
+        ================================================= */}
 
         <Route
-  path="/customers"
-  element={
-    <DashboardLayout>
-      <Customers />
-    </DashboardLayout>
-  }
-/>
+          path="/billing"
+          element={
+            <DashboardLayout>
+              <CreateBill />
+            </DashboardLayout>
+          }
+        />
 
-<Route
-  path="/customers/:id"
-  element={
-    <DashboardLayout>
-      <CustomerDetails />
-    </DashboardLayout>
-  }
-/>
+        <Route
+          path="/billing/all"
+          element={
+            <DashboardLayout>
+              <AllBills />
+            </DashboardLayout>
+          }
+        />
 
-<Route
-  path="/customers/:id/edit"
-  element={
-    <DashboardLayout>
-      <EditCustomer />
-    </DashboardLayout>
-  }
-/>
+        <Route
+          path="/billing/drafts"
+          element={
+            <DashboardLayout>
+              <DraftBills />
+            </DashboardLayout>
+          }
+        />
 
+        <Route
+          path="/billing/completed"
+          element={
+            <DashboardLayout>
+              <CompletedBills />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/billing/cancelled"
+          element={
+            <DashboardLayout>
+              <CancelledBills />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/billing/history"
+          element={
+            <DashboardLayout>
+              <InvoiceHistory />
+            </DashboardLayout>
+          }
+        />
+
+
+        {/* =================================================
+            ORDERS
+        ================================================= */}
+
+        <Route
+          path="/orders"
+          element={
+            <DashboardLayout>
+              <Orders />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/orders/create"
+          element={
+            <DashboardLayout>
+              <CreateOrder />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/orders/update"
+          element={
+            <DashboardLayout>
+              <UpdateOrder />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/orders/cancel"
+          element={
+            <DashboardLayout>
+              <CancelOrder />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/orders/delivery"
+          element={
+            <DashboardLayout>
+              <Delivery />
+            </DashboardLayout>
+          }
+        />
+
+
+        {/* =================================================
+            PAYMENTS
+        ================================================= */}
+
+        <Route
+          path="/payments"
+          element={
+            <DashboardLayout>
+              <Payments />
+            </DashboardLayout>
+          }
+        />
+
+
+        {/* =================================================
+            CUSTOMERS
+        ================================================= */}
+
+        <Route
+          path="/customers"
+          element={
+            <DashboardLayout>
+              <Customers />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/customers/:id"
+          element={
+            <DashboardLayout>
+              <CustomerDetails />
+            </DashboardLayout>
+          }
+        />
+
+        <Route
+          path="/customers/:id/edit"
+          element={
+            <DashboardLayout>
+              <EditCustomer />
+            </DashboardLayout>
+          }
+        />
+
+
+        {/* =================================================
+            SUPPLIERS
+        ================================================= */}
 
         <Route
           path="/suppliers"
           element={
             <DashboardLayout>
-              <PlaceholderPage title="Suppliers" />
+              <Suppliers />
             </DashboardLayout>
           }
         />
+
+
+        {/* =================================================
+            OTHER ERP MODULES
+        ================================================= */}
 
         <Route
           path="/makers"
@@ -295,7 +330,10 @@ const AppRouter = () => {
         />
 
 
-        {/* ================= DEFAULT ================= */}
+        {/* =================================================
+            DEFAULT
+            KEEP THIS LAST
+        ================================================= */}
 
         <Route
           path="*"
