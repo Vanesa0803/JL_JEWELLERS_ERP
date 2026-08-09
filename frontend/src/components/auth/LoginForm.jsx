@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 import { loginUser } from "../../services/auth.service";
 import useAuthStore from "../../store/authStore";
 
+import { useNavigate } from "react-router-dom";
 
 import { Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -12,6 +13,9 @@ import PasswordInput from "../ui/PasswordInput";
 import Button from "../ui/Button";
 
 const LoginForm = () => {
+  const navigate = useNavigate();
+  
+  
   const {
     register,
     handleSubmit,
@@ -26,16 +30,18 @@ const LoginForm = () => {
   try {
     setLoading(true);
 
-    const response = await loginUser(
-      data.email,
-      data.password
-    );
+   const response = await loginUser(
+  data.email,
+  data.password
+);
 
-    login(response.user, response.token);
+login(response.user, response.token);
 
-    toast.success(response.message);
+toast.success(response.message);
 
-    console.log("Logged In User:", response.user);
+console.log("Logged In User:", response.user);
+
+navigate("/dashboard");
 
     // Dashboard navigation comes next
 

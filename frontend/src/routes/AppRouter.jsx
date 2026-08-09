@@ -158,7 +158,7 @@ const AppRouter = () => {
         {/* Default */}
         <Route
           path="*"
-          element={<Navigate to="/dashboard" replace />}
+          element={<Navigate to="/login" replace />}
         />
 
       </Routes>
