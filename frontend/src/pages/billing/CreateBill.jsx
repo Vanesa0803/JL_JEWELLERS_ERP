@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+
 import {
   Search,
   Plus,
@@ -7,6 +8,8 @@ import {
   UserPlus,
   ChevronDown,
 } from "lucide-react";
+
+import api from"../api/axios";
 
 const GST_PERCENT = 3;
 
@@ -25,16 +28,17 @@ const CreateBill = () => {
    * ============================
    */
 
-  const addItem = () => {
-    const newItem = {
-      id: Date.now(),
-      product: "",
-      quantity: 1,
-      netWeight: "",
-      rate: "",
-      makingPercent: "",
-      discount: "",
-    };
+const newItem = {
+  id: Date.now(),
+  product_id: "",
+  metal_type: "",
+  purity: "",
+  quantity: 1,
+  net_weight: "",
+  rate: "",
+  making_charge_percent: "",
+  discount: 0,
+}; 
 
     setItems((previousItems) => [
       ...previousItems,
@@ -444,6 +448,50 @@ const CreateBill = () => {
                   const calculation =
                     calculateItem(item);
 
+                  const handleCreateBill = async () => {
+  try {
+    // Basic validation
+    if (items.length === 0) {
+      alert("Please add at least one item.");
+      return;
+    }
+
+    // For now, employee_id is temporary until we connect logged-in user data
+    const employeeId = 1;
+
+    const payload = {
+      customer_id: 1, // TEMPORARY: replace with selected customer ID
+      employee_id: employeeId,
+      payment_status: paymentStatus,
+      items: items.map((item) => ({
+        product: item.product,
+        quantity: Number(item.quantity),
+        net_weight: Number(item.netWeight),
+        rate: Number(item.rate),
+        making_charge_percent: Number(item.makingPercent),
+        discount: Number(item.discount) || 0,
+      })),
+    };
+
+    console.log("CREATE BILL PAYLOAD:", payload);
+
+    const response = await api.post("/bills", payload);
+
+    console.log("CREATE BILL RESPONSE:", response.data);
+
+    alert("Bill created successfully.");
+
+  } catch (error) {
+    console.error("CREATE BILL ERROR:", error);
+
+    alert(
+      error.response?.data?.message ||
+      "Failed to create bill."
+    );
+  }
+};
+
+
                   return (
 
                     <tr
@@ -455,19 +503,18 @@ const CreateBill = () => {
 
                       <td className="px-3 py-3">
 
-                        <input
-                          type="text"
-                          value={item.product}
-                          onChange={(event) =>
-                            updateItem(
-                              item.id,
-                              "product",
-                              event.target.value
-                            )
-                          }
-                          placeholder="Product name"
-                          className="h-10 w-full min-w-[160px] rounded-lg border border-[#DED4CA] px-3 text-sm outline-none focus:border-[#B8860B]"
-                        />
+                       <input
+  type="number"
+  value={item.product_id}
+  onChange={(event) =>
+    updateItem(
+      item.id,
+      "product_id",
+      event.target.value
+    )
+  }
+  placeholder="Product ID"
+/>
 
                       </td>
 
@@ -501,11 +548,11 @@ const CreateBill = () => {
                           type="number"
                           min="0"
                           step="0.001"
-                          value={item.netWeight}
+                          value={item.net_weight}
                           onChange={(event) =>
                             updateItem(
                               item.id,
-                              "netWeight",
+                              "net_weight",
                               event.target.value
                             )
                           }
@@ -554,11 +601,11 @@ const CreateBill = () => {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={item.makingPercent}
+                          value={item.making_charge_percent}
                           onChange={(event) =>
                             updateItem(
                               item.id,
-                              "makingPercent",
+                              "making_charge_percent",
                               event.target.value
                             )
                           }
@@ -1128,16 +1175,17 @@ const CreateBill = () => {
         </button>
 
         <button
-          type="button"
-          className="rounded-xl bg-[#6F3E32] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5D332A]"
-        >
-          Create Bill
-        </button>
+  type="button"
+  onClick={handleCreateBill}
+  className="rounded-xl bg-[#6F3E32] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5D332A]"
+>
+  Create Bill
+</button>
 
       </div>
 
     </div>
   );
-};
+
 
 export default CreateBill;
