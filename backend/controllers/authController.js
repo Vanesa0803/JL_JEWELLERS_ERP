@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
     const normalizedEmail = email.toLowerCase();
 
     const [existing] = await db.query(
-      "SELECT user_id FROM users WHERE email = ?",
+      "SELECT id FROM users WHERE email = ?",
       [normalizedEmail]
     );
 
@@ -31,7 +31,7 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const [result] = await db.query(
-      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+      "INSERT INTO users (name, email, password, role, status) VALUES (?, ?, ?, 'employee', 'active')",
       [name, normalizedEmail, hashedPassword]
     );
 
@@ -39,12 +39,11 @@ exports.register = async (req, res) => {
       message: "User registered successfully ✅",
       userId: result.insertId,
     });
+
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-
     res.status(500).json({
-      message:
-        error.message || "Registration failed because of a server error.",
+      message: error.message || "Registration failed ❌",
     });
   }
 };
@@ -65,7 +64,7 @@ exports.login = async (req, res) => {
     const normalizedEmail = email.toLowerCase();
 
     const [users] = await db.query(
-      `SELECT user_id, name, email, password, role, status
+      `SELECT id, name, email, password, role, status
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -82,7 +81,7 @@ exports.login = async (req, res) => {
 
     if (user.status !== "active") {
       return res.status(403).json({
-        message: "User account is inactive",
+        message: "User account is inactive ❌",
       });
     }
 
@@ -96,49 +95,34 @@ exports.login = async (req, res) => {
 
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({
-        message: "JWT_SECRET is missing in .env",
+        message: "JWT_SECRET missing in .env ❌",
       });
     }
 
     const token = jwt.sign(
       {
-        id: user.user_id,
+        id: user.id,   // 🔥 FIXED
         role: user.role,
       },
       process.env.JWT_SECRET,
-      {
-        expiresIn: "1d",
-      }
+      { expiresIn: "1d" }
     );
 
     res.json({
       message: "Login successful ✅",
       token,
       user: {
-        id: user.user_id,
+        id: user.id,   // 🔥 FIXED
         name: user.name,
         email: user.email,
         role: user.role,
       },
     });
+
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-
-    if (
-      error.code === "ECONNREFUSED" ||
-      error.code === "PROTOCOL_CONNECTION_LOST" ||
-      error.code === "ER_ACCESS_DENIED_ERROR" ||
-      error.code === "ER_BAD_DB_ERROR"
-    ) {
-      return res.status(500).json({
-        message:
-          "Database connection failed. Check that MySQL is running and your .env DB settings are correct.",
-        code: error.code,
-      });
-    }
-
     res.status(500).json({
-      message: error.message || "Login failed because of a server error.",
+      message: error.message || "Login failed ❌",
     });
   }
 };
@@ -149,7 +133,7 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const [users] = await db.query(
-      "SELECT user_id, name, email, role, status FROM users WHERE user_id = ?",
+      "SELECT id, name, email, role, status FROM users WHERE id = ?",
       [req.user.id]
     );
 
@@ -160,9 +144,9 @@ exports.getProfile = async (req, res) => {
     }
 
     res.json(users[0]);
+
   } catch (error) {
     console.error("PROFILE ERROR:", error);
-
     res.status(500).json({
       message: error.message || "Server error ❌",
     });
@@ -190,9 +174,9 @@ exports.logout = async (req, res) => {
     res.json({
       message: "Logged out successfully ✅",
     });
+
   } catch (error) {
     console.error("LOGOUT ERROR:", error);
-
     res.status(500).json({
       message: error.message || "Server error ❌",
     });
@@ -212,14 +196,8 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        message: "Password must be at least 6 characters ❌",
-      });
-    }
-
     const [users] = await db.query(
-      "SELECT * FROM users WHERE user_id = ?",
+      "SELECT * FROM users WHERE id = ?",
       [req.user.id]
     );
 
@@ -242,16 +220,16 @@ exports.changePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await db.query(
-      "UPDATE users SET password = ? WHERE user_id = ?",
+      "UPDATE users SET password = ? WHERE id = ?",
       [hashedPassword, req.user.id]
     );
 
     res.json({
       message: "Password changed successfully ✅",
     });
+
   } catch (error) {
     console.error("CHANGE PASSWORD ERROR:", error);
-
     res.status(500).json({
       message: error.message || "Server error ❌",
     });
@@ -267,20 +245,14 @@ exports.resetPassword = async (req, res) => {
 
     if (!email || !newPassword) {
       return res.status(400).json({
-        message: "Email and new password are required ❌",
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        message: "Password must be at least 6 characters ❌",
+        message: "Email and new password required ❌",
       });
     }
 
     const normalizedEmail = email.toLowerCase();
 
     const [users] = await db.query(
-      "SELECT user_id FROM users WHERE email = ?",
+      "SELECT id FROM users WHERE email = ?",
       [normalizedEmail]
     );
 
@@ -300,11 +272,11 @@ exports.resetPassword = async (req, res) => {
     res.json({
       message: "Password reset successful ✅",
     });
+
   } catch (error) {
     console.error("RESET PASSWORD ERROR:", error);
-
     res.status(500).json({
-      message: error.message || "Password reset failed ❌",
+      message: error.message || "Reset failed ❌",
     });
   }
 };
