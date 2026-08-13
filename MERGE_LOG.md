@@ -56,6 +56,60 @@ Purvansh's modules need no conversion; they are already ESM.
 
 ---
 
+## Method — best of everything, not one branch's version
+
+Modules are **not** inherited wholesale from whichever branch happened to be merged
+first. For each one, every branch that contains an implementation is compared, and the
+best is taken — judged on correctness against the live schema, then on error handling,
+validation and structure.
+
+That means a module can come from a branch nobody thought of as "the" source, and two
+adjacent modules can come from different developers. Author is not a tiebreaker.
+
+### Source scour — completed 2026-08-13
+
+Every branch checked for work not already captured in an integration branch.
+
+| Branch | Unique work? | Verdict |
+|---|---|---|
+| `developer-riya` | **None** — `backend/src` is byte-identical to `billing-integration` | Nothing stranded |
+| `developer-purvansh` | **All 100 files** — in no integration branch | The big find. Phase B |
+| `developer-aditya` | One file differs from `auth-integration`: `authController.js` | Its version is **worse** — see below |
+| `auth-integration` | Fuller auth + HR | **Best auth controller** — see below |
+| `main` | Nothing. Strictly behind on backend; frontend is an empty TS scaffold | Discard |
+| `frontend-vanshika` | Superseded by `billing-integration` (23 files fewer) | Discard |
+
+### Decision: `authController.js` — four versions compared
+
+| Version | Endpoints | Correct against schema? |
+|---|:--:|---|
+| `main` | 2 | ❌ signs with the literal `"secret"`; reads `user.id` |
+| `billing-integration` *(currently running)* | 2 | ✅ correct secret and `user_id`; handles DB errors |
+| `developer-aditya` | **6** | ❌ `SELECT id FROM users` and `user.id` — that column does not exist |
+| **`auth-integration`** ← **taken** | **6** | ✅ correct `user_id`, plus the same DB error handling |
+
+`auth-integration`'s version is a strict superset of the one currently running: identical
+correctness and error handling, plus `getProfile`, `logout`, `changePassword` and
+`resetPassword`.
+
+**Note the trap this avoids.** Aditya's branch looks fuller than what we run — six
+endpoints against two — but queries a column that does not exist, so four of the six
+would fail at runtime. "More endpoints" and "better" are not the same thing, and only
+checking against the live schema separates them.
+
+### Duplicate implementations — decided per module
+
+| Module | Candidates | Taken | Why |
+|---|---|---|---|
+| customers | `billing-integration` `customerModel.js` · `developer-purvansh` `customer.repository.js` | **Purvansh** | Documents, notes, loyalty, VIP, analytics and ledger behind it. The other is a thin helper for billing |
+| customer ledger | both | **Riya** *(pending phase A verification)* | Covers all six ledger types; Purvansh's covers only the two party ledgers |
+| supplier ledger | both | **Riya** *(same)* | Same reason |
+| auth controller | four branches | **auth-integration** | See above |
+
+Opposite directions on purpose. Each judged on its own merits.
+
+---
+
 ## Baseline before any merging — measured 2026-08-13
 
 The reference every conversion is checked against. If a module's result changes from
