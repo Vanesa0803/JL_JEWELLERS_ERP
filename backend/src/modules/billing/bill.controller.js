@@ -1,4 +1,4 @@
-const billingService = require("../services/billingService.cjs");
+import billingService from "./bill.service.js";
 
 const createBill = async (req, res) => {
     try {
@@ -293,7 +293,7 @@ const printInvoice = async (req, res) => {
 
 };
 
-module.exports = {
+export {
     createBill,
     updateBill,
     cancelBill,
@@ -304,4 +304,19 @@ module.exports = {
     updateBillStatus,
     deleteBill,
     getBillHistory
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createBill,
+    updateBill,
+    cancelBill,
+    printInvoice,
+    searchBills,
+    getAllBills,
+    getBillById,
+    updateBillStatus,
+    deleteBill,
+    getBillHistory,
 };

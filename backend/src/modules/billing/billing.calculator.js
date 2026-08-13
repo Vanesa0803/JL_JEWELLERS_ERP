@@ -1,19 +1,4 @@
 /**
- * DEPRECATED SHADOW COPY - do not edit.
- *
- * Billing has been converted to ESM and now lives at modules/billing/.
- * This file survives only because modules that have not been converted yet
- * still require() it, and CommonJS cannot require an ESM module:
- *
- *   paymentService.cjs                      -> billModel.cjs
- *   requireFinancialPinForCompletedBill.cjs -> billingService.cjs
- *
- * DELETE THIS FILE once the payments and security modules are converted.
- * Until then billing logic exists in two places: fix bugs in
- * modules/billing/, never here. Tracked in MERGE_LOG.md.
- */
-
-/**
  * =====================================================
  * JL JEWELLERS ERP
  * Billing Calculator
@@ -98,6 +83,12 @@ const calculateBillItem = ({
 
 };
 
-module.exports = {
+export {
     calculateBillItem
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    calculateBillItem,
 };

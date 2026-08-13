@@ -1,9 +1,9 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
 
-const verifyFinancialPin = require("../middleware/verifyFinancialPin.cjs");
-const billController = require("../controllers/billController.cjs");
-const requireFinancialPinForCompletedBill = require("../middleware/requireFinancialPinForCompletedBill.cjs");
+import verifyFinancialPin from "../../middleware/verifyFinancialPin.cjs";
+import billController from "./bill.controller.js";
+import requireFinancialPinForCompletedBill from "../../middleware/requireFinancialPinForCompletedBill.cjs";
 
 router.get("/", billController.getAllBills);
 
@@ -25,4 +25,4 @@ router.put("/:id/status", billController.updateBillStatus);
 
 router.delete("/:id", billController.deleteBill);
 
-module.exports = router;
+export default router;

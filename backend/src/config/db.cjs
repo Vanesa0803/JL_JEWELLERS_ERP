@@ -97,7 +97,22 @@ const verifyConnection = async () => {
   }
 };
 
-module.exports = pool;
+/**
+ * DEFAULT EXPORT = the single connection, deliberately.
+ *
+ * Not-yet-converted CommonJS files call `connection.beginTransaction(...)` on
+ * whatever this module returns. A pool has no `beginTransaction`, so exporting
+ * the pool here silently breaks every transaction path — and because those are
+ * all POST/PUT routes, a GET-only endpoint sweep reports everything healthy.
+ * (That is exactly what happened during phase 0 and went unnoticed until the
+ * billing module was opened up.)
+ *
+ * Exporting the single connection preserves the old behaviour byte for byte.
+ * Converted modules import `callbackPool` explicitly and take their own pooled
+ * connection per transaction. When the last transaction site is converted, this
+ * default and the single connection both disappear.
+ */
+module.exports = connection;
 module.exports.pool = pool;
 module.exports.promisePool = promisePool;
 module.exports.connection = connection;

@@ -1,21 +1,6 @@
-/**
- * DEPRECATED SHADOW COPY - do not edit.
- *
- * Billing has been converted to ESM and now lives at modules/billing/.
- * This file survives only because modules that have not been converted yet
- * still require() it, and CommonJS cannot require an ESM module:
- *
- *   paymentService.cjs                      -> billModel.cjs
- *   requireFinancialPinForCompletedBill.cjs -> billingService.cjs
- *
- * DELETE THIS FILE once the payments and security modules are converted.
- * Until then billing logic exists in two places: fix bugs in
- * modules/billing/, never here. Tracked in MERGE_LOG.md.
- */
-
-const { calculateBillItem } = require("../utils/billingCalculator.cjs");
-const billModel = require("../models/billModel.cjs");
-const ledgerService = require("./ledgerService.cjs");
+import { calculateBillItem } from "./billing.calculator.js";
+import billModel from "./bill.model.js";
+import ledgerService from "../../services/ledgerService.cjs";
 
 /**
  * Get All Bills
@@ -342,7 +327,7 @@ const cancelBill = async (billId) => {
 
 };
 
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 
 const deleteBill = (billId,deletedBy) => {
@@ -443,7 +428,7 @@ const printInvoice = async (billId) => {
 
 };
 
-module.exports = {
+export {
     createBill,
     updateBill,
     cancelBill,
@@ -454,4 +439,19 @@ module.exports = {
     updateBillStatus,
     deleteBill,
     getBillHistory
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createBill,
+    updateBill,
+    cancelBill,
+    searchBills,
+    printInvoice,
+    getAllBills,
+    getBillById,
+    updateBillStatus,
+    deleteBill,
+    getBillHistory,
 };

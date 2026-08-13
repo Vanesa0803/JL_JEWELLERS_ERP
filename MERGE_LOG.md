@@ -34,7 +34,7 @@ It stays on `auth-integration` until feature work resumes.
 | # | Module | Source | Converted | Mounted | Swept | Status |
 |:--:|---|---|:--:|:--:|:--:|---|
 | 0 | Foundation | shared | ✅ | ✅ | ✅ | **merged — 0 regressions** |
-| 1 | billing | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 1 | billing | Riya | ✅ | ✅ | ✅ | **merged — 2 real bugs fixed** |
 | 2 | payments | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 3 | ledger | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 4 | finance | Riya | ⏳ | ⏳ | ⏳ | not started |
@@ -246,6 +246,109 @@ through the Vite proxy returns 200; `/api/v1/bills` returns 200; LAN access refu
 `vite.config.js` proxy target changed from `localhost:5000` to `127.0.0.1:5000` — with the
 API on loopback IPv4 only, "localhost" resolving to `::1` on Windows would have broken
 every proxied call.
+
+**Verdict: merged.**
+
+---
+
+### 1. Billing — ✅ MERGED · 2026-08-13
+
+**Source:** `billing-integration` (Riya). Confirmed by the scour to be the only
+implementation — `developer-riya` is byte-identical, no other branch has a billing module.
+
+**Files** — 5 converted to ESM and moved to `src/modules/billing/`
+
+| New | From |
+|---|---|
+| `bill.routes.js` | `routes/billRoutes.cjs` |
+| `bill.controller.js` | `controllers/billController.cjs` |
+| `bill.service.js` | `services/billingService.cjs` |
+| `bill.model.js` | `models/billModel.cjs` |
+| `billing.calculator.js` | `utils/billingCalculator.cjs` |
+
+---
+
+#### Bug 1 — bills could be reported as saved when nothing was written
+
+`createBill` opened a transaction, inserted the `bills` row, and then **resolved the
+promise immediately — before inserting the bill items and before `COMMIT`.** A second
+`resolve()` after the commit did nothing, because a promise only settles once.
+
+So if the `bill_items` insert failed, the transaction rolled back correctly — but the
+caller had *already* been told `"Bill created successfully."` with a `bill_id`. The user
+sees a successful bill; the database has nothing.
+
+Fixed: the premature resolve is gone. The only success path is now after a confirmed
+commit.
+
+#### Bug 2 — a regression phase 0 introduced, and why the sweep missed it
+
+`db.cjs` exported the **pool** as its default. A pool has no `beginTransaction()` — that
+has to be pinned to a single connection. So from the moment phase 0 landed, every
+transaction path in the app was broken:
+
+```
+billModel · goldSchemeModel · customerOrderService · makerAssignmentService
+```
+
+**The endpoint sweep reported all green throughout.** Every transaction sits behind a
+POST or PUT, and the sweep only called GETs. A read-only test suite cannot see a broken
+write path.
+
+Fixed two ways:
+1. `db.cjs` now defaults to the single connection again, so unconverted CommonJS behaves
+   exactly as before.
+2. `scripts/sweep-writes.cjs` added — it creates a real bill, **verifies the items
+   actually committed**, checks an empty bill is rejected, then cleans up after itself.
+   Every module from here is checked against both sweeps.
+
+This is the more useful of the two findings. The first was a latent bug; the second was a
+gap in how we were verifying, which would have kept hiding bugs of that shape.
+
+---
+
+**Patch code**
+
+- Both transactions (`createBill`, `updateBill`) now take a connection from the shared
+  pool via `getConnection()` and release it on every exit path — success, failure and
+  rollback. Two of the four outstanding transaction sites are done; `goldSchemeModel` and
+  `customerOrderService` follow with their own modules.
+- Default exports added alongside named exports. CommonJS `module.exports = {...}`
+  supports both `require("x").a` and destructuring; ESM `export {}` does not, so
+  consumers using `import x from` would break. Emitting both lets modules convert one at
+  a time without rewriting every importer in the same step.
+- Dead code removed: `billModel` had **two** `module.exports =` blocks, the first
+  silently overwritten by the second. Verified the second was a superset before dropping
+  the first — nothing was lost.
+
+**Deprecated shadows — deliberate, short-lived**
+
+`billModel.cjs`, `billingService.cjs` and `billingCalculator.cjs` still exist, because
+two unconverted modules require them and **CommonJS cannot require ESM**, so a re-export
+shim is impossible:
+
+```
+paymentService.cjs                      -> billModel.cjs
+requireFinancialPinForCompletedBill.cjs -> billingService.cjs
+```
+
+All three carry a DEPRECATED header. Billing logic exists in two places until payments
+and security convert — fixes go in `modules/billing/`. `billRoutes.cjs` and
+`billController.cjs` had no remaining consumers and were deleted.
+
+**Sweeps**
+
+```
+read  : 24 routes, 17 OK, 7 known-broken, 0 regressions
+write : POST /bills                      PASS  (bill_id created)
+        -> items actually committed      PASS  (1 item)
+        -> empty bill rejected           PASS
+        0 failures
+```
+
+**Known, not fixed** — an empty bill is rejected with a **500** rather than a 400. It is
+correctly refused, but the status code is wrong. Fixing it means adding validation, which
+is new code and outside this phase's scope. Logged for feature work.
 
 **Verdict: merged.**
 

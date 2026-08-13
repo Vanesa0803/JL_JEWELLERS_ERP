@@ -1,31 +1,35 @@
-/**
- * DEPRECATED SHADOW COPY - do not edit.
- *
- * Billing has been converted to ESM and now lives at modules/billing/.
- * This file survives only because modules that have not been converted yet
- * still require() it, and CommonJS cannot require an ESM module:
- *
- *   paymentService.cjs                      -> billModel.cjs
- *   requireFinancialPinForCompletedBill.cjs -> billingService.cjs
- *
- * DELETE THIS FILE once the payments and security modules are converted.
- * Until then billing logic exists in two places: fix bugs in
- * modules/billing/, never here. Tracked in MERGE_LOG.md.
- */
-
-const connection = require("../config/db.cjs");
+import connection, { callbackPool } from "../../config/db.js";
 
 /**
- * Save Bill and Bill Items
+ * Save Bill and Bill Items.
+ *
+ * Runs inside a transaction on ONE pooled connection. A transaction has to stay
+ * pinned to a single connection, so this takes one out of the pool and returns
+ * it in every exit path — success, failure and rollback.
  */
 const createBill = (billData) => {
 
     return new Promise((resolve, reject) => {
 
+      callbackPool.getConnection((connectionError, connection) => {
+
+        if (connectionError) {
+            return reject(connectionError);
+        }
+
+        const done = (error, value) => {
+            connection.release();
+            return error ? reject(error) : resolve(value);
+        };
+
+        const abort = (error) => {
+            connection.rollback(() => done(error));
+        };
+
         connection.beginTransaction((err) => {
 
             if (err) {
-                return reject(err);
+                return done(err);
             }
 
             const billQuery = `
@@ -66,26 +70,19 @@ const createBill = (billData) => {
                 (err, result) => {
 
                     if (err) {
-
-                        return connection.rollback(() => {
-                            reject(err);
-                        });
-
+                        return abort(err);
                     }
 
                     const billId = result.insertId;
 
-                    resolve({
-
-                        success: true,
-
-                        bill_id: billId,
-
-                        invoice_number: invoiceNumber,
-
-                        message: "Bill created successfully."
-
-                    });
+                    // NOTE: there was a resolve() here, before the bill items
+                    // were inserted and before COMMIT. Because a promise only
+                    // settles once, the later resolve after commit did nothing
+                    // — and if the item insert failed, the transaction rolled
+                    // back while the caller had ALREADY been told the bill was
+                    // created successfully. Bills could be reported saved when
+                    // nothing was written. Removed; the only resolve is now
+                    // after a successful commit.
 
                     const itemQuery = `
                         INSERT INTO bill_items
@@ -152,24 +149,16 @@ const createBill = (billData) => {
                         (err) => {
 
                             if (err) {
-
-                                return connection.rollback(() => {
-                                    reject(err);
-                                });
-
+                                return abort(err);
                             }
 
                             connection.commit((err) => {
 
                                 if (err) {
-
-                                    return connection.rollback(() => {
-                                        reject(err);
-                                    });
-
+                                    return abort(err);
                                 }
 
-                                resolve({
+                                done(null, {
 
                                     success: true,
 
@@ -193,12 +182,10 @@ const createBill = (billData) => {
 
         });
 
+      });
+
     });
 
-};
-
-module.exports = {
-    createBill
 };
 
 /**
@@ -414,10 +401,27 @@ const updateBill = (billId, billData) => {
 
     return new Promise((resolve, reject) => {
 
+      // Same pooled-transaction pattern as createBill: one connection taken from
+      // the pool, released on every exit path.
+      callbackPool.getConnection((connectionError, connection) => {
+
+        if (connectionError) {
+            return reject(connectionError);
+        }
+
+        const done = (error, value) => {
+            connection.release();
+            return error ? reject(error) : resolve(value);
+        };
+
+        const abort = (error) => {
+            connection.rollback(() => done(error));
+        };
+
         connection.beginTransaction((err) => {
 
             if (err) {
-                return reject(err);
+                return done(err);
             }
 
             const updateBillQuery = `
@@ -453,9 +457,7 @@ const updateBill = (billId, billData) => {
 
                     if (err) {
 
-                        return connection.rollback(() => {
-                            reject(err);
-                        });
+                        return abort(err);
 
                     }
 
@@ -474,9 +476,7 @@ const updateBill = (billId, billData) => {
 
                             if (err) {
 
-                                return connection.rollback(() => {
-                                    reject(err);
-                                });
+                                return abort(err);
 
                             }
 
@@ -532,9 +532,7 @@ const updateBill = (billId, billData) => {
 
                                     if (err) {
 
-                                        return connection.rollback(() => {
-                                            reject(err);
-                                        });
+                                        return abort(err);
 
                                     }
 
@@ -542,13 +540,11 @@ const updateBill = (billId, billData) => {
 
                                         if (err) {
 
-                                            return connection.rollback(() => {
-                                                reject(err);
-                                            });
+                                            return abort(err);
 
                                         }
 
-                                        resolve({
+                                        done(null, {
                                             success: true,
                                             message: "Bill updated successfully."
                                         });
@@ -568,6 +564,8 @@ const updateBill = (billId, billData) => {
             );
 
         });
+
+      });
 
     });
 
@@ -695,7 +693,7 @@ const printInvoice = (billId) => {
 
 };
 
-module.exports = {
+export {
     createBill,
     getAllBills,
     getBillById,
@@ -704,4 +702,17 @@ module.exports = {
     cancelBill,
     searchBills,
     printInvoice
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createBill,
+    getAllBills,
+    getBillById,
+    updateBillStatus,
+    updateBill,
+    cancelBill,
+    searchBills,
+    printInvoice,
 };

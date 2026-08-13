@@ -24,7 +24,10 @@ import { ApiResponse } from "./utils/ApiResponse.js";
 /* ------------------------------------------------------------------ *
  * Routes — finance side (bridged CommonJS, awaiting conversion)
  * ------------------------------------------------------------------ */
-import billRoutes from "./routes/billRoutes.cjs";
+// Converted modules (ESM, under modules/)
+import billRoutes from "./modules/billing/bill.routes.js";
+
+// Still bridged as CommonJS, awaiting their turn
 import paymentRoutes from "./routes/paymentRoutes.cjs";
 import ledgerRoutes from "./routes/ledgerRoutes.cjs";
 import cashBookRoutes from "./routes/cashBookRoutes.cjs";
