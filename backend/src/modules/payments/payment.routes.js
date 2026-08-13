@@ -1,7 +1,7 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
 
-const paymentController = require("../controllers/paymentController.cjs");
+import paymentController from "./payment.controller.js";
 
 router.post("/", paymentController.recordPayment);
 
@@ -21,4 +21,4 @@ router.get("/history", paymentController.getPaymentHistory);
 
 router.get("/receipt/:payment_id", paymentController.getPaymentReceipt);
 
-module.exports = router;
+export default router;

@@ -35,7 +35,7 @@ It stays on `auth-integration` until feature work resumes.
 |:--:|---|---|:--:|:--:|:--:|---|
 | 0 | Foundation | shared | ✅ | ✅ | ✅ | **merged — 0 regressions** |
 | 1 | billing | Riya | ✅ | ✅ | ✅ | **merged — 2 real bugs fixed** |
-| 2 | payments | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 2 | payments | Riya | ✅ | ✅ | ✅ | **merged — S2-15 fixed; advances blocked on a schema decision** |
 | 3 | ledger | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 4 | finance | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 5 | reports + analytics | Riya | ⏳ | ⏳ | ⏳ | not started |
@@ -351,6 +351,75 @@ correctly refused, but the status code is wrong. Fixing it means adding validati
 is new code and outside this phase's scope. Logged for feature work.
 
 **Verdict: merged.**
+
+---
+
+### 2. Payments — ✅ MERGED · 2026-08-13
+
+**Source:** `billing-integration` (Riya). Only implementation in the project.
+
+**Files** — 4 converted to ESM under `src/modules/payments/`: `payment.routes.js`,
+`payment.controller.js`, `payment.service.js`, `payment.model.js`.
+
+#### `S2-15` fixed — for 3 of 4 affected functions
+
+The model queried `p.customer_id`, which does not exist on `payments`. Real columns:
+
+```
+payment_id, bill_id, payment_date, total_amount, payment_status,
+payment_type, created_by, updated_by, created_at, updated_at
+```
+
+A payment belongs to a **bill**, and the bill knows the customer. Three functions were
+already joining `bills` and hedging with `COALESCE(p.customer_id, b.customer_id)` — the
+original author half-expected this. Dropping the phantom half fixes them outright:
+
+| Endpoint | Before | After |
+|---|:--:|:--:|
+| `GET /payments/history` | 400 `Unknown column 'p.customer_id'` | **200** |
+| `GET /payments/refund-history` | (untested) | **200** |
+| `GET /payments/receipt/:id` | (untested) | **200** |
+| `GET /payments/pending/:bill_id` | — | 404 "Bill not found" — correct for a missing bill |
+
+Baseline in `scripts/sweep.cjs` updated so these are now *expected* to pass — reintroducing
+the bug would show as a regression.
+
+#### Blocked — the advance-payment feature needs a schema change
+
+Four functions implement advances, and they need **two columns that do not exist**:
+
+| Column | Used by | Purpose |
+|---|---|---|
+| `payments.customer_id` | `createAdvancePayment`, `createAdvanceAdjustmentPayment`, `getCustomerAdvance` | An advance is taken from a *customer* before any bill exists, so it cannot hang off `bill_id` |
+| `payments.is_adjusted` | `adjustAdvancePayment`, `getCustomerAdvance` | Marks an advance as consumed, so it is not spent twice |
+
+This is not a rename and there is no workaround — an advance genuinely has no bill to
+join through. The code is fully written; the schema never caught up.
+
+`GET /payments/advance/:customer_id` remains **500**, recorded as an expected failure in
+the sweep. Awaiting a decision on whether to add the columns.
+
+**Patch code**
+
+- Customer resolved via `bills` in three queries, with the reason in a SQL comment
+- `payment.service.js` now imports the converted `modules/billing/bill.model.js`, not the
+  deprecated shadow
+
+**Shadow files**
+
+Deleted: the four old payment `.cjs` files, now orphaned.
+`billModel.cjs` **could not** be deleted — `billingService.cjs` also requires it, which I
+missed on the first pass. Deleting it broke startup; the sweep caught it inside a minute
+and it was restored. Both shadows go when the security module converts.
+
+**Sweeps**
+
+```
+read  : 28 routes, 20 OK, 8 known-broken, 0 regressions
+write : 3/3 pass
+```
+
+**Verdict: merged**, with the advance feature explicitly blocked rather than quietly broken.
 
 ---
 

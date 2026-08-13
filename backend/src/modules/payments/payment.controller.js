@@ -1,4 +1,4 @@
-const paymentService = require("../services/paymentService.cjs");
+import paymentService from "./payment.service.js";
 
 const recordPayment = async (req, res) => {
 
@@ -291,7 +291,7 @@ const getPaymentReceipt = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     recordPayment,
     getPendingPayment,
@@ -303,4 +303,18 @@ module.exports = {
     getPaymentHistory,
     getPaymentReceipt
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    recordPayment,
+    getPendingPayment,
+    createAdvancePayment,
+    getCustomerAdvance,
+    adjustAdvanceToBill,
+    createRefund,
+    getRefundHistory,
+    getPaymentHistory,
+    getPaymentReceipt,
 };

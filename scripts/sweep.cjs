@@ -19,8 +19,17 @@ const BASELINE = {
   "GET /finance/balance-sheet": "FAIL cash_book",
   "GET /finance/cash-flow": "FAIL cash_book",
   "GET /financial-security/": "FAIL financial_security",
-  "GET /payments/history": "FAIL p.customer_id",
   "GET /income/history": "FAIL income_date",
+
+  // Fixed when the payments module was merged — S2-15. Now expected to pass,
+  // so a future change that reintroduces the bug shows up as a regression.
+  "GET /payments/history": 200,
+  "GET /payments/refund-history": 200,
+  "GET /payments/receipt/1": 200,
+
+  // Still failing: the advance-payment feature needs payments.customer_id and
+  // payments.is_adjusted, which do not exist in the schema. Pending a decision.
+  "GET /payments/advance/1": "FAIL needs payments.customer_id",
   "GET /reports/gst": 200,
   "GET /reports/customers": 200,
   "GET /reports/payments": 200,

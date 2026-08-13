@@ -1,7 +1,7 @@
-const paymentModel = require("../models/paymentModel.cjs");
-const billModel = require("../models/billModel.cjs");
-const ledgerService = require("./ledgerService.cjs");
-const cashBookService = require("./cashBookService.cjs");
+import paymentModel from "./payment.model.js";
+import billModel from "../billing/bill.model.js";
+import ledgerService from "../../services/ledgerService.cjs";
+import cashBookService from "../../services/cashBookService.cjs";
 
 const recordPayment = async (paymentData) => {
 
@@ -575,7 +575,7 @@ const getPaymentReceipt = async (paymentId) => {
 
 };
 
-module.exports = {
+export {
 
     recordPayment,
     getPendingPayment,
@@ -586,4 +586,18 @@ module.exports = {
     getRefundHistory,
     getPaymentHistory,
     getPaymentReceipt
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    recordPayment,
+    getPendingPayment,
+    createAdvancePayment,
+    getCustomerAdvance,
+    adjustAdvanceToBill,
+    createRefund,
+    getRefundHistory,
+    getPaymentHistory,
+    getPaymentReceipt,
 };

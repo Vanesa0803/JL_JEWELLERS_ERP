@@ -1,4 +1,4 @@
-const connection = require("../config/db.cjs");
+import connection from "../../config/db.js";
 
 const getBillById = (billId) => {
 
@@ -558,7 +558,8 @@ const getRefundHistory = (filters) => {
                 r.refund_id,
                 r.payment_id,
                 p.bill_id,
-                p.customer_id,
+                -- via the bill: payments has no customer_id column (S2-15)
+                b.customer_id,
                 r.refund_amount,
                 r.refund_reason,
                 r.refund_date,
@@ -568,6 +569,8 @@ const getRefundHistory = (filters) => {
             FROM refunds r
             JOIN payments p
                 ON r.payment_id = p.payment_id
+            LEFT JOIN bills b
+                ON p.bill_id = b.bill_id
             WHERE 1=1
         `;
 
@@ -584,7 +587,7 @@ const getRefundHistory = (filters) => {
         }
 
         if (filters.customer_id) {
-            query += " AND p.customer_id = ?";
+            query += " AND b.customer_id = ?";
             values.push(filters.customer_id);
         }
 
@@ -614,7 +617,11 @@ const getPaymentHistory = (filters) => {
             SELECT
                 p.payment_id,
                 p.bill_id,
-                p.customer_id,
+                -- The customer comes from the bill. There is no
+                -- payments.customer_id column: the original COALESCE over
+                -- p.customer_id assumed one existed, which made this whole
+                -- query fail with "Unknown column 'p.customer_id'". (S2-15)
+                b.customer_id,
                 p.payment_date,
                 p.total_amount,
                 p.payment_status,
@@ -639,7 +646,7 @@ const getPaymentHistory = (filters) => {
                 ON p.bill_id = b.bill_id
 
             LEFT JOIN customers c
-                ON COALESCE(p.customer_id, b.customer_id) = c.customer_id
+                ON b.customer_id = c.customer_id
 
             WHERE 1=1
         `;
@@ -662,7 +669,7 @@ const getPaymentHistory = (filters) => {
 
         if (filters.customer_id) {
 
-            query += " AND COALESCE(p.customer_id,b.customer_id)=?";
+            query += " AND b.customer_id = ?";
             values.push(filters.customer_id);
 
         }
@@ -766,11 +773,9 @@ const getPaymentReceipt = (paymentId) => {
             LEFT JOIN bills b
                 ON p.bill_id = b.bill_id
 
+            -- via the bill: payments has no customer_id column (S2-15)
             LEFT JOIN customers c
-                ON COALESCE(
-                    p.customer_id,
-                    b.customer_id
-                ) = c.customer_id
+                ON b.customer_id = c.customer_id
 
             LEFT JOIN payment_details pd
                 ON p.payment_id = pd.payment_id
@@ -804,7 +809,7 @@ const getPaymentReceipt = (paymentId) => {
 
 };
 
-module.exports = {
+export {
 
     getBillById,
     createPayment,
@@ -824,4 +829,26 @@ module.exports = {
     getPaymentHistory,
     getPaymentReceipt
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getBillById,
+    createPayment,
+    createPaymentDetails,
+    updateBillPaymentStatus,
+    getPendingPayment,
+    getPaidAmountForBill,
+    createAdvancePayment,
+    getCustomerAdvance,
+    adjustAdvancePayment,
+    createAdvanceAdjustmentPayment,
+    getPaymentById,
+    createRefund,
+    updatePaymentStatus,
+    getTotalRefundedAmount,
+    getRefundHistory,
+    getPaymentHistory,
+    getPaymentReceipt,
 };
