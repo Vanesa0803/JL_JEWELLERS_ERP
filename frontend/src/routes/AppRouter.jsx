@@ -7,6 +7,9 @@ import {
 
 import DashboardLayout from "../layouts/DashboardLayout";
 
+import ProtectedRoute from "./ProtectedRoute";
+import PublicRoute from "./PublicRoute";
+
 import Login from "../pages/auth/Login";
 import Dashboard from "../pages/dashboard/Dashboard";
 
@@ -52,6 +55,27 @@ const PlaceholderPage = ({ title }) => {
 
 
 /* =========================================================
+   PRIVATE PAGE WRAPPER
+
+   Every page below the login screen needs two things:
+     1. a logged-in check   (ProtectedRoute)
+     2. the sidebar + topbar chrome  (DashboardLayout)
+
+   Rather than repeating both on all 20+ routes, they are combined here once.
+========================================================= */
+
+const Private = ({ children }) => {
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        {children}
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+};
+
+
+/* =========================================================
    APP ROUTER
 ========================================================= */
 
@@ -66,7 +90,11 @@ const AppRouter = () => {
 
         <Route
           path="/login"
-          element={<Login />}
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
         />
 
 
@@ -77,9 +105,9 @@ const AppRouter = () => {
         <Route
           path="/dashboard"
           element={
-            <DashboardLayout>
+            <Private>
               <Dashboard />
-            </DashboardLayout>
+            </Private>
           }
         />
 
@@ -91,54 +119,54 @@ const AppRouter = () => {
         <Route
           path="/billing"
           element={
-            <DashboardLayout>
+            <Private>
               <CreateBill />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/billing/all"
           element={
-            <DashboardLayout>
+            <Private>
               <AllBills />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/billing/drafts"
           element={
-            <DashboardLayout>
+            <Private>
               <DraftBills />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/billing/completed"
           element={
-            <DashboardLayout>
+            <Private>
               <CompletedBills />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/billing/cancelled"
           element={
-            <DashboardLayout>
+            <Private>
               <CancelledBills />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/billing/history"
           element={
-            <DashboardLayout>
+            <Private>
               <InvoiceHistory />
-            </DashboardLayout>
+            </Private>
           }
         />
 
@@ -150,45 +178,45 @@ const AppRouter = () => {
         <Route
           path="/orders"
           element={
-            <DashboardLayout>
+            <Private>
               <Orders />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/orders/create"
           element={
-            <DashboardLayout>
+            <Private>
               <CreateOrder />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/orders/update"
           element={
-            <DashboardLayout>
+            <Private>
               <UpdateOrder />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/orders/cancel"
           element={
-            <DashboardLayout>
+            <Private>
               <CancelOrder />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/orders/delivery"
           element={
-            <DashboardLayout>
+            <Private>
               <Delivery />
-            </DashboardLayout>
+            </Private>
           }
         />
 
@@ -200,9 +228,9 @@ const AppRouter = () => {
         <Route
           path="/payments"
           element={
-            <DashboardLayout>
+            <Private>
               <Payments />
-            </DashboardLayout>
+            </Private>
           }
         />
 
@@ -214,27 +242,27 @@ const AppRouter = () => {
         <Route
           path="/customers"
           element={
-            <DashboardLayout>
+            <Private>
               <Customers />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/customers/:id"
           element={
-            <DashboardLayout>
+            <Private>
               <CustomerDetails />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/customers/:id/edit"
           element={
-            <DashboardLayout>
+            <Private>
               <EditCustomer />
-            </DashboardLayout>
+            </Private>
           }
         />
 
@@ -246,9 +274,9 @@ const AppRouter = () => {
         <Route
           path="/suppliers"
           element={
-            <DashboardLayout>
+            <Private>
               <Suppliers />
-            </DashboardLayout>
+            </Private>
           }
         />
 
@@ -260,72 +288,72 @@ const AppRouter = () => {
         <Route
           path="/makers"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Makers / Karigars" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/gold-schemes"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Gold Schemes" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/inventory"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Inventory" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/ledgers"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Ledgers" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/finance"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Finance" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/reports"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Reports" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/notifications"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Notifications" />
-            </DashboardLayout>
+            </Private>
           }
         />
 
         <Route
           path="/settings"
           element={
-            <DashboardLayout>
+            <Private>
               <PlaceholderPage title="Settings" />
-            </DashboardLayout>
+            </Private>
           }
         />
 

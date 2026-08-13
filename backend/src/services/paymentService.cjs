@@ -1,0 +1,589 @@
+const paymentModel = require("../models/paymentModel.cjs");
+const billModel = require("../models/billModel.cjs");
+const ledgerService = require("./ledgerService.cjs");
+const cashBookService = require("./cashBookService.cjs");
+
+const recordPayment = async (paymentData) => {
+
+    // Check whether bill exists
+    const bill = await paymentModel.getBillById(
+        paymentData.bill_id
+    );
+
+    if (!bill) {
+        throw new Error("Bill not found.");
+    }
+
+    const allowedMethods = [
+        "Cash",
+        "Card",
+        "UPI",
+        "Bank Transfer"
+    ];
+
+    for (const payment of paymentData.payments) {
+
+        if (!allowedMethods.includes(payment.payment_method)) {
+
+            throw new Error(
+                `Invalid payment method: ${payment.payment_method}`
+            );
+
+        }
+
+    }
+
+    const usedMethods = new Set();
+
+    for (const payment of paymentData.payments) {
+
+        if (usedMethods.has(payment.payment_method)) {
+
+            throw new Error(
+                `Duplicate payment method: ${payment.payment_method}`
+            );
+
+        }
+
+        usedMethods.add(payment.payment_method);
+
+    }
+
+    // Calculate current payment amount
+    const currentPaymentAmount = paymentData.payments.reduce(
+        (sum, payment) => sum + Number(payment.amount),
+        0
+    );
+
+    const grandTotal = Number(bill.grand_total);
+
+    // Get previous successful payments for this bill
+    const previousPayments = await paymentModel.getPaidAmountForBill(
+        bill.bill_id
+    );
+
+    const totalPaid = Number(previousPayments) + currentPaymentAmount;
+
+    let paymentStatus;
+
+    if (totalPaid > grandTotal) {
+
+        throw new Error(
+            "Payment amount cannot exceed pending bill amount."
+        );
+
+    }
+    else if (totalPaid === grandTotal) {
+
+        paymentStatus = "Completed";
+
+    }
+    else if (totalPaid > 0) {
+
+        paymentStatus = "Partial";
+
+    }
+    else {
+
+        paymentStatus = "Pending";
+
+    }   
+    // Create payment record
+    const paymentResult = await paymentModel.createPayment({
+
+        bill_id: paymentData.bill_id,
+
+        total_amount: currentPaymentAmount,
+
+        payment_status: paymentStatus,
+
+        payment_type:
+            paymentData.payment_type || "Bill Payment",
+
+        created_by:
+            paymentData.created_by || null
+
+    });
+
+    const paymentId = paymentResult.insertId;
+
+    // Insert payment details
+    await paymentModel.createPaymentDetails(
+
+        paymentId,
+
+        paymentData.payments
+
+    );
+
+    const isCash = paymentData.payments.some(
+        payment => payment.payment_method === "Cash"
+    );
+
+    if (isCash) {
+
+        const cashAmount = paymentData.payments
+            .filter(payment => payment.payment_method === "Cash")
+            .reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+        await cashBookService.createCashEntry({
+
+            transaction_type: "Cash In",
+
+            source: "Bill Payment",
+
+            reference_id: paymentId,
+
+            customer_id: bill.customer_id,
+
+            amount: cashAmount,
+
+            remarks: "Bill Payment Received",
+
+            created_by: paymentData.created_by || 1
+
+        });
+
+    }
+    
+    await ledgerService.createLedgerEntry({
+
+        customer_id: bill.customer_id,
+
+        bill_id: bill.bill_id,
+
+        transaction_type: "Payment",
+
+        debit: 0,
+
+        credit: currentPaymentAmount,
+
+        remarks: "Bill Payment"
+
+    });
+
+    // Update bill payment status
+    await billModel.updateBillStatus(
+        bill.bill_id,
+        bill.bill_status,
+        paymentStatus
+    );
+
+    return {
+
+        success: true,
+
+        payment_id: paymentId,
+
+        total_amount: currentPaymentAmount,
+
+        message: "Payment recorded successfully."
+
+    };
+
+};
+
+const getPendingPayment = async (billId) => {
+
+    const bill = await paymentModel.getPendingPayment(billId);
+
+    if (!bill) {
+        throw new Error("Bill not found.");
+    }
+
+    const pendingAmount = Number(
+        (
+            Number(bill.grand_total) -
+            Number(bill.paid_amount)
+        ).toFixed(2)
+    );
+
+    return {
+
+        bill_id: bill.bill_id,
+
+        grand_total: Number(bill.grand_total),
+
+        paid_amount: Number(bill.paid_amount),
+
+        pending_amount: pendingAmount,
+
+        payment_status: bill.payment_status
+
+    };
+
+};
+const createAdvancePayment = async (paymentData) => {
+
+    const allowedMethods = [
+        "Cash",
+        "Card",
+        "UPI",
+        "Bank Transfer"
+    ];
+
+    if (!allowedMethods.includes(paymentData.payment_method)) {
+
+        throw new Error("Invalid payment method.");
+
+    }
+
+    const result = await paymentModel.createAdvancePayment({
+
+        customer_id: paymentData.customer_id,
+        total_amount: paymentData.amount,
+        payment_method: paymentData.payment_method,
+        reference_number: paymentData.reference_number,
+        created_by: paymentData.created_by
+
+    });
+
+    if (paymentData.payment_method === "Cash") {
+
+        await cashBookService.createCashEntry({
+
+            transaction_type: "Cash In",
+
+            source: "Advance Payment",
+
+            reference_id: result.payment_id,
+
+            customer_id: paymentData.customer_id,
+
+            amount: paymentData.amount,
+
+            remarks: "Advance Payment Received",
+
+            created_by: paymentData.created_by || 1
+
+        });
+
+    }
+
+    await ledgerService.createLedgerEntry({
+
+        customer_id: paymentData.customer_id,
+
+        bill_id: null,
+
+        transaction_type: "Payment",
+
+        debit: 0,
+
+        credit: paymentData.amount,
+
+        remarks: "Advance Payment"
+
+    });
+    return result;
+
+};
+
+const getCustomerAdvance = async (customerId) => {
+
+    return await paymentModel.getCustomerAdvance(customerId);
+};
+
+const adjustAdvanceToBill = async (billId, paymentId) => {
+
+    const bill = await paymentModel.getBillById(billId);
+
+    if (!bill) {
+        throw new Error("Bill not found.");
+    }
+
+    const advances = await paymentModel.getCustomerAdvance(
+        bill.customer_id
+    );
+
+    const advance = advances.find(
+        a => a.payment_id == paymentId
+    );
+
+    if (!advance) {
+        throw new Error("Advance payment not found.");
+    }
+
+    const previousPaidAmount =
+        await paymentModel.getPaidAmountForBill(bill.bill_id);
+
+    const remainingAmount = Number(
+        (
+            Number(bill.grand_total) -
+            Number(previousPaidAmount) -
+            Number(advance.total_amount)
+        ).toFixed(2)
+    );
+
+    if (remainingAmount < 0) {
+        throw new Error(
+            "Advance amount exceeds the pending bill amount."
+        );
+    }
+
+    await paymentModel.adjustAdvancePayment(paymentId);
+
+    const adjustmentPayment =
+        await paymentModel.createAdvanceAdjustmentPayment({
+
+            bill_id: bill.bill_id,
+
+            customer_id: bill.customer_id,
+
+            total_amount: Number(advance.total_amount),
+
+            created_by: 1
+
+        });
+
+    await paymentModel.createPaymentDetails(
+
+        adjustmentPayment.insertId,
+        [
+
+            {
+
+                payment_method: "Cash",
+
+                amount: Number(advance.total_amount),
+
+                reference_number: "ADV-" + paymentId
+
+            }
+
+        ]
+
+    );
+    await ledgerService.createLedgerEntry({
+
+        customer_id: bill.customer_id,
+
+        bill_id: bill.bill_id,
+
+        transaction_type: "Adjustment",
+
+        debit: 0,
+
+        credit: Number(advance.total_amount),
+
+        remarks: "Advance Adjusted"
+
+    });
+
+    let paymentStatus = "Partial";
+
+    if (remainingAmount === 0) {
+
+        paymentStatus = "Completed";
+
+    }
+
+    await paymentModel.updateBillPaymentStatus(
+
+        bill.bill_id,
+
+        paymentStatus
+
+    );
+
+    return {
+
+        bill_id: bill.bill_id,
+
+        grand_total: Number(bill.grand_total),
+
+        advance_used: Number(advance.total_amount),
+
+        remaining_amount: remainingAmount,
+
+        message: "Advance adjusted successfully."
+
+    };
+
+};
+
+const createRefund = async (refundData) => {
+
+    const payment =
+        await paymentModel.getPaymentById(
+            refundData.payment_id
+        );
+
+    if (!payment) {
+        throw new Error("Payment not found.");
+    }
+
+    const alreadyRefunded =
+        await paymentModel.getTotalRefundedAmount(
+            payment.payment_id
+        );
+
+    const remainingRefund =
+        Number(payment.total_amount)
+
+        -
+
+        alreadyRefunded;    
+
+    if (!payment) {
+
+        throw new Error("Payment not found.");
+
+    }
+
+    if (payment.payment_type !== "Bill Payment") {
+
+        throw new Error(
+            "Only bill payments can be refunded."
+        );
+
+    }
+
+    if (
+        Number(refundData.refund_amount)
+        >
+        Number(remainingRefund)
+    ) {
+
+        throw new Error(
+            "Refund amount exceeds remaining refundable balance."
+        );
+
+    }
+
+    await paymentModel.createRefund({
+
+        payment_id: refundData.payment_id,
+
+        refund_amount: refundData.refund_amount,
+
+        refund_reason: refundData.refund_reason
+
+    });
+
+    const totalRefundAfterThis =
+
+        alreadyRefunded
+
+        +
+
+        Number(refundData.refund_amount);
+
+    let paymentStatus = "Partial";
+
+    if (
+        totalRefundAfterThis >=
+        Number(payment.total_amount)
+    ){
+        paymentStatus = "Pending";
+    }
+
+    await paymentModel.updatePaymentStatus(
+
+        payment.payment_id,
+
+        paymentStatus
+
+    );
+
+    if (payment.bill_id) {
+
+        await paymentModel.updateBillPaymentStatus(
+
+            payment.bill_id,
+
+            paymentStatus
+
+        );
+
+    }
+
+    await ledgerService.createLedgerEntry({
+
+        customer_id: payment.customer_id,
+
+        bill_id: payment.bill_id,
+
+        transaction_type: "Refund",
+
+        debit: Number(refundData.refund_amount),
+
+        credit: 0,
+
+        remarks: "Refund Issued"
+
+    });
+
+    await cashBookService.createCashEntry({
+
+        transaction_type: "Cash Out",
+
+        source: "Refund",
+
+        reference_id: payment.payment_id,
+
+        customer_id: payment.customer_id,
+
+        amount: Number(refundData.refund_amount),
+
+        remarks: "Refund Issued",
+
+        created_by: 1
+
+    });
+
+    return {
+
+        payment_id: payment.payment_id,
+
+        refunded_amount: Number(
+            refundData.refund_amount
+        ),
+
+        payment_status: paymentStatus,
+
+        message: "Refund processed successfully."
+
+    };
+
+};
+
+const getRefundHistory = async (filters) => {
+
+    return await paymentModel.getRefundHistory(filters);
+
+};
+
+const getPaymentHistory = async (filters) => {
+
+    return await paymentModel.getPaymentHistory(filters);
+
+};
+
+const getPaymentReceipt = async (paymentId) => {
+
+    const receipt =
+        await paymentModel.getPaymentReceipt(paymentId);
+
+    if (!receipt.length) {
+
+        throw new Error("Payment not found.");
+
+    }
+
+    return receipt;
+
+};
+
+module.exports = {
+
+    recordPayment,
+    getPendingPayment,
+    createAdvancePayment,
+    getCustomerAdvance,
+    adjustAdvanceToBill,
+    createRefund,
+    getRefundHistory,
+    getPaymentHistory,
+    getPaymentReceipt
+};

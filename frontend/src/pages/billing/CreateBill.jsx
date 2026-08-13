@@ -9,7 +9,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import api from"../api/axios";
+import api from "../../api/axios";
 
 const GST_PERCENT = 3;
 
@@ -28,17 +28,18 @@ const CreateBill = () => {
    * ============================
    */
 
-const newItem = {
-  id: Date.now(),
-  product_id: "",
-  metal_type: "",
-  purity: "",
-  quantity: 1,
-  net_weight: "",
-  rate: "",
-  making_charge_percent: "",
-  discount: 0,
-}; 
+  const addItem = () => {
+    const newItem = {
+      id: Date.now(),
+      product_id: "",
+      metal_type: "",
+      purity: "",
+      quantity: 1,
+      net_weight: "",
+      rate: "",
+      making_charge_percent: "",
+      discount: 0,
+    };
 
     setItems((previousItems) => [
       ...previousItems,
@@ -1186,6 +1187,6 @@ const newItem = {
 
     </div>
   );
-
+};
 
 export default CreateBill;

@@ -1,23 +1,32 @@
-const mysql = require("mysql2");
+/**
+ * ESM view of the shared database module.
+ *
+ * The real implementation lives in db.cjs — see the comment at the top of that
+ * file for why. This shim exists so already-ESM code can keep its natural
+ * imports:
+ *
+ *     import { pool } from "../config/db.js";     // promise API
+ *     import db from "../config/db.js";           // callback pool
+ *
+ * `pool` is deliberately the PROMISE pool, because the ESM code in this project
+ * is written with async/await against `pool.execute(...)`.
+ */
 
-const connection = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT
-});
+import database from "./db.cjs";
 
-connection.connect((err) => {
+/** Promise-style pool — `await pool.execute(sql, params)` */
+export const pool = database.promisePool;
 
-    if (err) {
-        console.log("❌ Database Connection Failed");
-        console.log(err.message);
-        return;
-    }
+/** Callback-style pool — `pool.query(sql, params, cb)` */
+export const callbackPool = database.pool;
 
-    console.log("✅ Connected to MySQL Database");
+/** Runs a real query to confirm the database is reachable. */
+export const verifyConnection = database.verifyConnection;
 
-});
+/**
+ * Kept for compatibility with code written against Purvansh's original db.js,
+ * which exported `connectDB`. Same job as verifyConnection.
+ */
+export const connectDB = database.verifyConnection;
 
-module.exports = connection;
+export default database.pool;

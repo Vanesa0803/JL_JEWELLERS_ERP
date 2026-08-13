@@ -1,0 +1,18 @@
+{
+  "name": "jl-jewellers-erp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JL Jewellers ERP — MySQL + Express backend, React frontend. Target: Windows desktop app via Electron.",
+  "scripts": {
+    "dev": "npm run db && concurrently -k -n BACKEND,FRONTEND -c yellow,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "db": "node scripts/ensure-mysql.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "setup": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

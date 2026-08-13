@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { loginUser } from "../../services/auth.service";
 import useAuthStore from "../../store/authStore";
@@ -22,6 +23,13 @@ const LoginForm = () => {
 
     const login = useAuthStore((state) => state.login);
 
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // If the guard bounced the user here from a page they wanted, go back to it
+    // after logging in. Otherwise land on the dashboard.
+    const redirectTo = location.state?.from?.pathname || "/dashboard";
+
     const onSubmit = async (data) => {
   try {
     setLoading(true);
@@ -35,9 +43,7 @@ const LoginForm = () => {
 
     toast.success(response.message);
 
-    console.log("Logged In User:", response.user);
-
-    // Dashboard navigation comes next
+    navigate(redirectTo, { replace: true });
 
   } catch (error) {
     const message =

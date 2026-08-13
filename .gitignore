@@ -1,2 +1,30 @@
+# Dependencies
 node_modules/
+
+# Environment files — NEVER commit these, they contain passwords
 .env
+.env.local
+*.env
+!.env.example
+
+# Build output
+dist/
+build/
+frontend/dist/
+
+# Electron packaging output (for later)
+release/
+out/
+
+# Uploaded files (customer/supplier documents)
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

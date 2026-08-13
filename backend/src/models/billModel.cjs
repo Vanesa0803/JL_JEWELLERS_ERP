@@ -1,0 +1,692 @@
+const connection = require("../config/db.cjs");
+
+/**
+ * Save Bill and Bill Items
+ */
+const createBill = (billData) => {
+
+    return new Promise((resolve, reject) => {
+
+        connection.beginTransaction((err) => {
+
+            if (err) {
+                return reject(err);
+            }
+
+            const billQuery = `
+                INSERT INTO bills
+                (
+                    invoice_number,
+                    customer_id,
+                    employee_id,
+                    subtotal,
+                    total_discount,
+                    total_gst,
+                    grand_total,
+                    payment_status,
+                    bill_status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            const invoiceNumber =
+                "INV-" + Date.now();
+
+            connection.query(
+
+                billQuery,
+
+                [
+                    invoiceNumber,
+                    billData.customer_id,
+                    billData.employee_id,
+                    billData.subtotal,
+                    billData.total_discount,
+                    billData.total_gst,
+                    billData.grand_total,
+                    billData.payment_status,
+                    billData.bill_status
+                ],
+
+                (err, result) => {
+
+                    if (err) {
+
+                        return connection.rollback(() => {
+                            reject(err);
+                        });
+
+                    }
+
+                    const billId = result.insertId;
+
+                    resolve({
+
+                        success: true,
+
+                        bill_id: billId,
+
+                        invoice_number: invoiceNumber,
+
+                        message: "Bill created successfully."
+
+                    });
+
+                    const itemQuery = `
+                        INSERT INTO bill_items
+                        (
+                            bill_id,
+                            product_id,
+                            metal_type,
+                            purity,
+                            quantity,
+                            net_weight,
+                            rate,
+                            metal_value,
+                            making_charge_percent,
+                            making_charge,
+                            taxable_value,
+                            gst_metal,
+                            gst_making,
+                            discount,
+                            line_total
+                        )
+                        VALUES ?
+                    `;
+
+                    const values = billData.items.map(item => [
+
+                        billId,
+
+                        item.product_id,
+
+                        item.metal_type,
+
+                        item.purity,
+
+                        item.quantity,
+
+                        item.net_weight,
+
+                        item.rate,
+
+                        item.metal_value,
+
+                        item.making_charge_percent,
+
+                        item.making_charge,
+
+                        item.taxable_value,
+
+                        item.gst_metal,
+
+                        item.gst_making,
+
+                        item.discount,
+
+                        item.line_total
+
+                    ]);
+
+                    connection.query(
+
+                        itemQuery,
+
+                        [values],
+
+                        (err) => {
+
+                            if (err) {
+
+                                return connection.rollback(() => {
+                                    reject(err);
+                                });
+
+                            }
+
+                            connection.commit((err) => {
+
+                                if (err) {
+
+                                    return connection.rollback(() => {
+                                        reject(err);
+                                    });
+
+                                }
+
+                                resolve({
+
+                                    success: true,
+
+                                    bill_id: billId,
+
+                                    invoice_number: invoiceNumber,
+
+                                    message: "Bill created successfully."
+
+                                });
+
+                            });
+
+                        }
+
+                    );
+
+                }
+
+            );
+
+        });
+
+    });
+
+};
+
+module.exports = {
+    createBill
+};
+
+/**
+ * Get All Bills
+ */
+const getAllBills = () => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            SELECT
+                bill_id,
+                invoice_number,
+                bill_date,
+                customer_name,
+                employee_name,
+                grand_total,
+                payment_status,
+                bill_status
+            FROM invoice_summary
+            ORDER BY bill_date DESC;
+        `;
+
+        connection.query(query, (err, results) => {
+
+            if (err) {
+                return reject(err);
+            }
+
+            resolve(results);
+
+        });
+
+    });
+
+};
+
+/**
+ * Get Single Bill with Items
+ */
+const getBillById = (billId) => {
+
+    return new Promise((resolve, reject) => {
+
+        const billQuery = `
+            SELECT
+                s.bill_id,
+                s.invoice_number,
+                s.bill_date,
+                s.customer_name,
+                s.employee_name,
+                s.subtotal,
+                s.total_discount,
+                s.total_gst,
+                s.grand_total,
+                s.payment_status,
+                s.bill_status
+
+            FROM invoice_summary s
+
+            INNER JOIN bills b
+                ON s.bill_id = b.bill_id
+
+            WHERE s.bill_id = ?
+            AND b.deleted_at IS NULL;
+        `;
+
+        connection.query(
+            billQuery,
+            [billId],
+            (err, billResult) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                if (billResult.length === 0) {
+                    return resolve(null);
+                }
+
+                const itemQuery = `
+                    SELECT
+                        bi.bill_item_id,
+                        p.product_name,
+                        bi.metal_type,
+                        bi.purity,
+                        bi.quantity,
+                        bi.net_weight,
+                        bi.rate,
+                        bi.metal_value,
+                        bi.making_charge_percent,
+                        bi.making_charge,
+                        bi.taxable_value,
+                        bi.gst_metal,
+                        bi.gst_making,
+                        bi.discount,
+                        bi.line_total
+
+                    FROM bill_items bi
+
+                    JOIN products p
+                        ON bi.product_id = p.product_id
+
+                    WHERE bi.bill_id = ?;
+                `;
+
+                connection.query(
+                    itemQuery,
+                    [billId],
+                    (err, itemResult) => {
+
+                        if (err) {
+                            return reject(err);
+                        }
+
+                        resolve({
+
+                            bill: billResult[0],
+
+                            items: itemResult
+
+                        });
+
+                    }
+                );
+
+            }
+        );
+
+    });
+
+};
+/**
+ * Update Bill Status
+ */
+const updateBillStatus = (billId, billStatus, paymentStatus) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            UPDATE bills
+            SET
+                bill_status = ?,
+                payment_status = ?
+            WHERE bill_id = ?
+        `;
+
+        connection.query(
+
+            query,
+
+            [
+                billStatus,
+                paymentStatus,
+                billId
+            ],
+
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result);
+
+            }
+
+        );
+
+    });
+
+};
+
+const cancelBill = (billId) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            UPDATE bills
+            SET
+                bill_status = 'Cancelled',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE bill_id = ?
+            AND bill_status = 'Completed'
+            AND deleted_at IS NULL
+        `;
+
+        connection.query(query, [billId], (err, result) => {
+
+            if (err) {
+                return reject(err);
+            }
+
+            if (result.affectedRows === 0) {
+
+                return reject(
+                    new Error(
+                        "Only active Completed bills can be cancelled."
+                    )
+                );
+
+            }
+
+            resolve(result);
+
+        });
+
+    });
+
+};
+
+const updateBill = (billId, billData) => {
+
+    return new Promise((resolve, reject) => {
+
+        connection.beginTransaction((err) => {
+
+            if (err) {
+                return reject(err);
+            }
+
+            const updateBillQuery = `
+                UPDATE bills
+                SET
+                    customer_id = ?,
+                    employee_id = ?,
+                    subtotal = ?,
+                    total_discount = ?,
+                    total_gst = ?,
+                    grand_total = ?,
+                    payment_status = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE bill_id = ?
+            `;
+
+            connection.query(
+
+                updateBillQuery,
+
+                [
+                    billData.customer_id,
+                    billData.employee_id,
+                    billData.subtotal,
+                    billData.total_discount,
+                    billData.total_gst,
+                    billData.grand_total,
+                    billData.payment_status,
+                    billId
+                ],
+
+                (err) => {
+
+                    if (err) {
+
+                        return connection.rollback(() => {
+                            reject(err);
+                        });
+
+                    }
+
+                    const deleteItemsQuery = `
+                        DELETE FROM bill_items
+                        WHERE bill_id = ?
+                    `;
+
+                    connection.query(
+
+                        deleteItemsQuery,
+
+                        [billId],
+
+                        (err) => {
+
+                            if (err) {
+
+                                return connection.rollback(() => {
+                                    reject(err);
+                                });
+
+                            }
+
+                            const insertItemsQuery = `
+                                INSERT INTO bill_items
+                                (
+                                    bill_id,
+                                    product_id,
+                                    metal_type,
+                                    purity,
+                                    quantity,
+                                    net_weight,
+                                    rate,
+                                    metal_value,
+                                    making_charge_percent,
+                                    making_charge,
+                                    taxable_value,
+                                    gst_metal,
+                                    gst_making,
+                                    discount,
+                                    line_total
+                                )
+                                VALUES ?
+                            `;
+
+                            const values = billData.items.map(item => [
+
+                                billId,
+                                item.product_id,
+                                item.metal_type,
+                                item.purity,
+                                item.quantity,
+                                item.net_weight,
+                                item.rate,
+                                item.metal_value,
+                                item.making_charge_percent,
+                                item.making_charge,
+                                item.taxable_value,
+                                item.gst_metal,
+                                item.gst_making,
+                                item.discount,
+                                item.line_total
+
+                            ]);
+
+                            connection.query(
+
+                                insertItemsQuery,
+
+                                [values],
+
+                                (err) => {
+
+                                    if (err) {
+
+                                        return connection.rollback(() => {
+                                            reject(err);
+                                        });
+
+                                    }
+
+                                    connection.commit((err) => {
+
+                                        if (err) {
+
+                                            return connection.rollback(() => {
+                                                reject(err);
+                                            });
+
+                                        }
+
+                                        resolve({
+                                            success: true,
+                                            message: "Bill updated successfully."
+                                        });
+
+                                    });
+
+                                }
+
+                            );
+
+                        }
+
+                    );
+
+                }
+
+            );
+
+        });
+
+    });
+
+};
+
+const searchBills = (filters) => {
+
+    return new Promise((resolve, reject) => {
+
+        let query = `
+            SELECT *
+            FROM bills
+            WHERE 1 = 1
+        `;
+
+        const values = [];
+
+        if (filters.invoice_number) {
+            query += " AND invoice_number LIKE ?";
+            values.push(`%${filters.invoice_number}%`);
+        }
+
+        if (filters.customer_id) {
+            query += " AND customer_id = ?";
+            values.push(filters.customer_id);
+        }
+
+        if (filters.bill_status) {
+            query += " AND bill_status = ?";
+            values.push(filters.bill_status);
+        }
+
+        if (filters.payment_status) {
+            query += " AND payment_status = ?";
+            values.push(filters.payment_status);
+        }
+
+        query += " ORDER BY created_at DESC";
+
+        connection.query(query, values, (err, result) => {
+
+            if (err) {
+                return reject(err);
+            }
+
+            resolve(result);
+
+        });
+
+    });
+
+};
+
+const printInvoice = (billId) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            SELECT
+
+                b.bill_id,
+                b.invoice_number,
+                b.bill_date,
+                b.subtotal,
+                b.total_discount,
+                b.total_gst,
+                b.grand_total,
+                b.payment_status,
+                b.bill_status,
+
+                c.customer_id,
+                c.customer_code,
+                c.first_name,
+                c.last_name,
+                c.mobile,
+                c.email,
+                c.address_line1,
+                c.address_line2,
+                c.city,
+                c.state,
+                c.pincode,
+
+                e.employee_id,
+                e.name AS employee_name,
+
+                bi.bill_item_id,
+                bi.product_id,
+                bi.metal_type,
+                bi.purity,
+                bi.quantity,
+                bi.net_weight,
+                bi.rate,
+                bi.metal_value,
+                bi.making_charge,
+                bi.discount,
+                bi.gst_metal,
+                bi.gst_making,
+                bi.line_total
+
+            FROM bills b
+
+            INNER JOIN customers c
+                ON b.customer_id = c.customer_id
+
+            INNER JOIN employees e
+                ON b.employee_id = e.employee_id
+
+            INNER JOIN bill_items bi
+                ON b.bill_id = bi.bill_id
+
+            WHERE b.bill_id = ?
+        `;
+        
+        connection.query(query, [billId], (err, result) => {
+
+            if (err) {
+                return reject(err);
+            }
+
+            resolve(result);
+
+        });
+
+    });
+
+};
+
+module.exports = {
+    createBill,
+    getAllBills,
+    getBillById,
+    updateBillStatus,
+    updateBill,
+    cancelBill,
+    searchBills,
+    printInvoice
+};

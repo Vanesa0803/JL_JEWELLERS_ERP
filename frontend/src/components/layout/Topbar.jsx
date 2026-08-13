@@ -1,14 +1,56 @@
+import { useEffect, useRef, useState } from "react";
+
 import {
   Bell,
   Menu,
   Search,
   ChevronDown,
+  LogOut,
+  User,
 } from "lucide-react";
 
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+
+import useAuthStore from "../../store/authStore";
 
 const Topbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close the dropdown when the user clicks anywhere outside it.
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close it when navigating to another page.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out");
+    navigate("/login", { replace: true });
+  };
+
+  const displayName = user?.name || "User";
+  const displayRole = user?.role || "";
+  const initial = displayName.charAt(0).toUpperCase();
 
   const pageTitles = {
     "/dashboard": "Dashboard",
@@ -89,32 +131,80 @@ const Topbar = () => {
         {/* Divider */}
         <div className="hidden h-8 w-px bg-[#E7DED3] sm:block" />
 
-        {/* User */}
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-[#F7F3EE]"
-        >
-          {/* Avatar */}
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6F3E32] text-sm font-semibold text-[#F7F3EE]">
-            A
-          </div>
+        {/* User + dropdown */}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-[#F7F3EE]"
+          >
+            {/* Avatar */}
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6F3E32] text-sm font-semibold text-[#F7F3EE]">
+              {initial}
+            </div>
 
-          {/* User Details */}
-          <div className="hidden text-left sm:block">
-            <p className="max-w-[120px] truncate text-sm font-medium text-[#2B2622]">
-              Admin
-            </p>
+            {/* User Details */}
+            <div className="hidden text-left sm:block">
+              <p className="max-w-[120px] truncate text-sm font-medium text-[#2B2622]">
+                {displayName}
+              </p>
 
-            <p className="text-xs text-[#9B8E83]">
-              Administrator
-            </p>
-          </div>
+              <p className="text-xs capitalize text-[#9B8E83]">
+                {displayRole}
+              </p>
+            </div>
 
-          <ChevronDown
-            size={16}
-            className="hidden text-[#9B8E83] sm:block"
-          />
-        </button>
+            <ChevronDown
+              size={16}
+              className={`hidden text-[#9B8E83] transition-transform sm:block ${
+                menuOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-[#E7DED3] bg-white shadow-lg"
+            >
+              {/* Who is signed in */}
+              <div className="border-b border-[#F0E9E1] px-4 py-3">
+                <p className="truncate text-sm font-medium text-[#2B2622]">
+                  {displayName}
+                </p>
+
+                <p className="truncate text-xs text-[#9B8E83]">
+                  {user?.email || "Not signed in"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/settings");
+                }}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-[#5F554D] transition hover:bg-[#F7F3EE]"
+              >
+                <User size={16} />
+                My Profile
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2.5 border-t border-[#F0E9E1] px-4 py-2.5 text-left text-sm font-medium text-[#A33A2B] transition hover:bg-[#FBF1EF]"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
