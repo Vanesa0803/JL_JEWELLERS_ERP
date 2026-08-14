@@ -1,4 +1,4 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 const getSalesTarget = () => {
 
@@ -456,7 +456,7 @@ const getFinancialAnalytics = () => {
 
 };
 
-module.exports = {
+export {
 
     getSalesTarget,
     getMonthlyRevenue,
@@ -467,4 +467,17 @@ module.exports = {
     getInventoryAnalytics,
     getFinancialAnalytics
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getSalesTarget,
+    getMonthlyRevenue,
+    getYearlyRevenue,
+    getRevenueComparison,
+    getProfitTrends,
+    getCustomerAnalytics,
+    getInventoryAnalytics,
+    getFinancialAnalytics,
 };

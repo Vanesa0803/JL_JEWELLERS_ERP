@@ -38,7 +38,7 @@ It stays on `auth-integration` until feature work resumes.
 | 2 | payments | Riya | ✅ | ✅ | ✅ | **merged — S2-15 fixed; advances blocked on a schema decision** |
 | 3 | ledger | **Riya** (over Purvansh) | ✅ | ✅ | ✅ | **merged — duplicate resolved on evidence** |
 | 4 | finance | Riya | ✅ | ✅ | ✅ | **merged — S0-7 and S2-16 resolved, 8 endpoints unblocked** |
-| 5 | reports + analytics | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 5 | reports + analytics + exports + dashboard | Riya | ✅ | ✅ | ✅ | **merged — S2-11 resolved, exports proven to produce real files** |
 | 6 | orders + makers | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 7 | schemes | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 8 | security (PIN) | Riya | ⏳ | ⏳ | ⏳ | not started |
@@ -675,6 +675,83 @@ read  : 36 routes, 33 OK, 3 known-broken, 0 regressions
 write : 5/5 pass, including the full Cash advance path
 database left clean: 15 bills, 15 payments, 0 cash_ledger, 33 customer_ledger
 ```
+
+**Verdict: merged.**
+
+---
+
+### 5. Reports, analytics, exports, dashboard — ✅ MERGED · 2026-08-13
+
+**16 files** converted into two modules: `src/modules/reports/` (reports, analytics,
+exports) and `src/modules/dashboard/`. Dashboard was split out — it is a distinct concern
+with its own model, not a report.
+
+**Lesson applied.** Every importer in the group was mapped *before* converting, after
+missing cross-imports twice. The group turned out to be self-contained, and the conversion
+started first time.
+
+#### Exports genuinely work — and produce real files
+
+This module was rated "PDF export 🟡, quality overstated" in the audit. Measured:
+
+| Endpoint | Result |
+|---|---|
+| `GET /export/csv?report=sales` | 200 · 1,970 bytes · `text/csv` |
+| `GET /export/pdf?report=gst` | 200 · 5,223 bytes · `application/pdf` |
+| `GET /export/excel?report=inventory` | 200 · 7,848 bytes · `…spreadsheetml.sheet` |
+
+Real files with correct content types, across all three formats and multiple report types.
+**Note the parameter is `report=`, not `type=`** — worth knowing before anyone wires the UI.
+
+#### `S2-11` resolved — and the duplicate had never worked
+
+The audit flagged two overlapping export surfaces. Testing showed it was worse than
+duplication:
+
+```js
+report.controller.js  ->  exportService.exportPDF()    // does not exist
+export.service.js     ->  exports exportToPDF()        // the real name
+```
+
+`/reports/export/pdf`, `/excel` and `/csv` called three functions that do not exist. **All
+three returned 500 on every request and had never worked once.**
+
+Removed rather than repaired. Two export surfaces doing the same job drift apart, the
+`/export/*` one demonstrably works, and nothing could have depended on handlers that only
+ever produced errors. Verified: the removed paths now 404, the working ones still return
+files.
+
+#### Dead code removed
+
+`utils/csvExport.cjs`, `exceleExport.cjs` and `pdfExport.cjs` had **no importers** —
+`export.service.js` implements all three formats directly against `pdfkit`, `exceljs` and
+`json2csv`. `models/exportModel.cjs` was a 0-byte file. All four deleted.
+
+#### A mistake worth recording
+
+I first tried to strip the three dead handlers with a regex. It failed to match the
+functions but *did* match inside a method call, turning
+`await exportService.exportCSV(req.query)` into `await exportService.(req.query)` —
+a syntax error. Regenerated the file from source and used exact-text edits instead.
+
+Scripted edits are fine for mechanical, uniform changes like `require` → `import`. For
+anything that needs judgement about structure, hand-editing is safer — a regex that
+half-matches is worse than one that does not match at all.
+
+#### Cleanup
+
+19 files deleted (16 superseded, 3 dead utils). Bridge down to **34 `.cjs` files from 83**.
+
+**Sweeps**
+
+```
+read  : 47 routes, 44 OK, 3 known-broken, 0 regressions
+write : 5/5 pass
+database left clean
+```
+
+Only the three financial-security endpoints still fail — module 8, which also unwinds the
+last deprecated shadow chain.
 
 **Verdict: merged.**
 

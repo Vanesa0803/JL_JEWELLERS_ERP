@@ -1,6 +1,6 @@
-const PDFDocument = require("pdfkit");
-const ExcelJS = require("exceljs");
-const { Parser } = require("json2csv");
+import PDFDocument from "pdfkit";
+import ExcelJS from "exceljs";
+import { Parser } from "json2csv";
 
 const exportToPDF = (title, data) => {
 
@@ -92,7 +92,7 @@ const exportToCSV = (data) => {
 
 };
 
-module.exports = {
+export {
 
     exportToPDF,
 
@@ -100,4 +100,12 @@ module.exports = {
 
     exportToCSV
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    exportToPDF,
+    exportToExcel,
+    exportToCSV,
 };

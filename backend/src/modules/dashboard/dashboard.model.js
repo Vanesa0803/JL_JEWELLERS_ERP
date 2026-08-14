@@ -1,4 +1,4 @@
-const connection = require("../config/db.cjs");
+import connection from "../../config/db.js";
 
 const getDashboardSummary = () => {
 
@@ -598,7 +598,7 @@ const getStockMovement = ()=>{
 
 };
 
-module.exports = {
+export {
 
     getDashboardSummary,
 
@@ -618,4 +618,18 @@ module.exports = {
 
     getStockMovement
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getDashboardSummary,
+    getSalesOverview,
+    getRecentBills,
+    getRecentActivities,
+    getLowStockProducts,
+    getTopSellingProducts,
+    getSalesAnalytics,
+    getInventoryDashboard,
+    getStockMovement,
 };

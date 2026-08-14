@@ -32,12 +32,12 @@ import cashBookRoutes from "./modules/finance/cashbook.routes.js";
 import expenseRoutes from "./modules/finance/expense.routes.js";
 import incomeRoutes from "./modules/finance/income.routes.js";
 import financeRoutes from "./modules/finance/finance.routes.js";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
+import reportRoutes from "./modules/reports/report.routes.js";
+import exportRoutes from "./modules/reports/export.routes.js";
+import analyticsRoutes from "./modules/reports/analytics.routes.js";
 
 // Still bridged as CommonJS, awaiting their turn
-import dashboardRoutes from "./routes/dashboardRoutes.cjs";
-import reportRoutes from "./routes/reportRoutes.cjs";
-import exportRoutes from "./routes/exportRoutes.cjs";
-import analyticsRoutes from "./routes/analyticsRoutes.cjs";
 import customerOrderRoutes from "./routes/customerOrderRoutes.cjs";
 import makerRoutes from "./routes/makerRoutes.cjs";
 import makerAssignmentRoutes from "./routes/makerAssignmentRoutes.cjs";

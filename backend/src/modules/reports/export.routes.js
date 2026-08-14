@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const exportController =
-require("../controllers/exportController.cjs");
+import exportController from "./export.controller.js";
 
 router.get("/pdf", exportController.exportPDF);
 
@@ -11,4 +10,4 @@ router.get("/excel", exportController.exportExcel);
 
 router.get("/csv", exportController.exportCSV);
 
-module.exports = router;
+export default router;

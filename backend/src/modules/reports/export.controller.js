@@ -1,5 +1,5 @@
-const reportService = require("../services/reportService.cjs");
-const exportService = require("../services/exportService.cjs");
+import reportService from "./report.service.js";
+import exportService from "./export.service.js";
 
 const exportPDF = async (req, res) => {
 
@@ -236,10 +236,18 @@ const exportCSV = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     exportPDF,
     exportExcel,
     exportCSV
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    exportPDF,
+    exportExcel,
+    exportCSV,
 };

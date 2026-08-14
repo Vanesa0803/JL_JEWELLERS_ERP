@@ -1,4 +1,4 @@
-const dashboardService = require("../services/dashboardService.cjs");
+import dashboardService from "./dashboard.service.js";
 
 const getDashboardSummary = async (req, res) => {
 
@@ -115,11 +115,20 @@ const getStockMovement = async (req,res)=>{
 
 };
 
-module.exports = {
+export {
 
     getDashboardSummary,
     getSalesAnalytics,
     getInventoryDashboard,
     getStockMovement
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getDashboardSummary,
+    getSalesAnalytics,
+    getInventoryDashboard,
+    getStockMovement,
 };

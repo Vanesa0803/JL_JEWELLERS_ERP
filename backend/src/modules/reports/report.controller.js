@@ -1,6 +1,5 @@
-const reportService =
-require("../services/reportService.cjs");
-const exportService = require("../services/exportService.cjs");
+import reportService from "./report.service.js";
+import exportService from "./export.service.js";
 
 const getSalesReport = async (req, res) => {
 
@@ -185,73 +184,20 @@ const getInventoryReport = async (req, res) => {
 
 };
 
-const exportPDF = async (req, res) => {
+/*
+ * exportPDF / exportExcel / exportCSV used to live here (S2-11).
+ *
+ * They called exportService.exportPDF, .exportExcel and .exportCSV — none of
+ * which exist. The service exports exportToPDF, exportToExcel and exportToCSV.
+ * All three therefore returned a 500 on every request and had never worked.
+ *
+ * They also duplicated the working export surface at
+ * /api/v1/export/{pdf,excel,csv}?report=<type>. Removed rather than repaired:
+ * two export paths doing the same job drift apart, and nothing could have
+ * depended on handlers that only ever returned errors.
+ */
 
-    try {
-
-        const filePath =
-            await exportService.exportPDF(req.query);
-
-        res.download(filePath);
-
-    } catch (error) {
-
-        res.status(500).json({
-
-            success: false,
-            message: error.message
-
-        });
-
-    }
-
-};
-
-const exportExcel = async (req, res) => {
-
-    try {
-
-        const filePath =
-            await exportService.exportExcel(req.query);
-
-        res.download(filePath);
-
-    } catch (error) {
-
-        res.status(500).json({
-
-            success: false,
-            message: error.message
-
-        });
-
-    }
-
-};
-
-const exportCSV = async (req, res) => {
-
-    try {
-
-        const filePath =
-            await exportService.exportCSV(req.query);
-
-        res.download(filePath);
-
-    } catch (error) {
-
-        res.status(500).json({
-
-            success: false,
-            message: error.message
-
-        });
-
-    }
-
-};
-
-module.exports = {
+export {
 
     getSalesReport,
 
@@ -263,12 +209,17 @@ module.exports = {
 
     getPaymentReport,
 
+    getInventoryReport
+
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getSalesReport,
+    getGSTReport,
+    getCustomerReport,
+    getLedgerReport,
+    getPaymentReport,
     getInventoryReport,
-
-    exportPDF,
-
-    exportExcel,
-
-    exportCSV
-
 };

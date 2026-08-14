@@ -25,6 +25,21 @@ const BASELINE = {
   "GET /finance/summary/profit-loss": 200,
   "GET /income/history": 200,
 
+  // Reports, analytics, dashboard and exports — module 5.
+  "GET /reports/inventory": 200,
+  "GET /reports/ledger": 200,
+  "GET /analytics/sales-target": 200,
+  "GET /analytics/yearly-revenue": 200,
+  "GET /analytics/customer-analytics": 200,
+  "GET /analytics/financial-analytics": 200,
+  "GET /dashboard/inventory": 200,
+  "GET /dashboard/stock-movement": 200,
+
+  // Exports genuinely produce files. Note the parameter is `report`, not `type`.
+  "GET /export/csv?report=sales": 200,
+  "GET /export/pdf?report=sales": 200,
+  "GET /export/excel?report=sales": 200,
+
   "GET /financial-security/": "FAIL financial_security",
 
   // Fixed when the payments module was merged — S2-15. Now expected to pass,

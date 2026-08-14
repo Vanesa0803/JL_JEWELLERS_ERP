@@ -1,5 +1,4 @@
-const reportModel =
-require("../models/reportModel.cjs");
+import reportModel from "./report.model.js";
 
 const getSalesReport = async (filters) => {
 
@@ -37,7 +36,7 @@ const getInventoryReport = async (filters) => {
 
 };
 
-module.exports = {
+export {
 
     getSalesReport,
     getGSTReport,
@@ -46,4 +45,15 @@ module.exports = {
     getPaymentReport,
     getInventoryReport
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getSalesReport,
+    getGSTReport,
+    getCustomerReport,
+    getLedgerReport,
+    getPaymentReport,
+    getInventoryReport,
 };

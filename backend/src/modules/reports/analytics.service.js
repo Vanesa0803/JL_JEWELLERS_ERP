@@ -1,5 +1,4 @@
-const analyticsModel =
-require("../models/analyticsModel.cjs");
+import analyticsModel from "./analytics.model.js";
 
 const getSalesTarget = async () => {
 
@@ -209,7 +208,7 @@ const getFinancialAnalytics = async () => {
 
 };
 
-module.exports = {
+export {
 
     getSalesTarget,
     getMonthlyRevenue,
@@ -220,4 +219,17 @@ module.exports = {
     getInventoryAnalytics,
     getFinancialAnalytics
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getSalesTarget,
+    getMonthlyRevenue,
+    getYearlyRevenue,
+    getRevenueComparison,
+    getProfitTrends,
+    getCustomerAnalytics,
+    getInventoryAnalytics,
+    getFinancialAnalytics,
 };

@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const analyticsController =
-require("../controllers/analyticsController.cjs");
+import analyticsController from "./analytics.controller.js";
 
 router.get(
     "/sales-target",
@@ -46,4 +45,4 @@ router.get(
     analyticsController.getFinancialAnalytics
 );
 
-module.exports = router;
+export default router;
