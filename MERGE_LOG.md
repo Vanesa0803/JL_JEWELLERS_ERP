@@ -43,7 +43,7 @@ It stays on `auth-integration` until feature work resumes.
 | 7 | schemes | Riya | ✅ | ✅ | ✅ | **merged — last 3 transaction sites pooled** |
 | 8 | security (PIN) | Riya | ✅ | ✅ | ✅ | **merged — S0-8 resolved. PHASE A COMPLETE** |
 | 9 | masters | Purvansh | n/a | ✅ | ✅ | **merged — worked first time, never run before** |
-| 10 | customers | Purvansh | n/a | ⏳ | ⏳ | not started |
+| 10 | customers | Purvansh | n/a | ✅ | ✅ | **merged — 1 systemic bug fixed across 17 sites** |
 | 11 | suppliers | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 12 | products | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 13 | inventory | Purvansh | n/a | ⏳ | ⏳ | not started |
@@ -1054,6 +1054,112 @@ touching anything that matters", and that held.
 
 ```
 read  : 59 routes, 59 OK, 0 failing, 0 regressions
+write : 10/10 pass
+```
+
+**Verdict: merged.**
+
+---
+
+### 10. Customers — ✅ MERGED · 2026-08-13
+
+**20 files** into `src/modules/customers/`: customer CRUD, documents, notes, loyalty/VIP,
+and analytics. Plus `config/multer.js` for file uploads and `multer` as a dependency —
+pinned to **2.x**, not the `1.4.5-lts.1` his branch specified, which carries known
+advisories.
+
+**Deliberately excluded: `customerLedger`.** Riya's implementation was chosen (see the
+duplicate table above) because it uses the real `customer_ledger` table, whereas this one
+derived balances from `customer_orders` as a documented stopgap.
+
+All **12 read endpoints answered on the first run**, including search, pagination,
+documents, notes, loyalty history, VIP list, purchase history, LTV, and birthday /
+anniversary tracking.
+
+#### Bug 1 — `customer_code` could never be inserted
+
+Creating a customer failed outright: `Field 'customer_code' doesn't have a default value`.
+
+The service deliberately derives the code from the new row's id — `CUS000025` — which is a
+good design: codes come out sequential and unique by construction, and a client cannot
+invent its own. But it needs the column to tolerate being empty between the INSERT and the
+UPDATE, and it was `NOT NULL` with no default.
+
+**Suppliers use the identical pattern**, so migration `2026-08-13_05` relaxes both. Products
+are unaffected — their code comes from the caller and is validated. The migration documents
+a recovery query, since the code is always rebuildable from the id.
+
+#### Bug 2 — a systemic one: omitted optional fields broke every insert
+
+Uploading a document failed with `Bind parameters must not contain undefined`. The cause is
+the dynamic query builder used throughout these repositories:
+
+```js
+const fields = Object.keys(data);
+const values = Object.values(data);
+```
+
+If any property is `undefined` — which happens **whenever a caller omits an optional
+field** — mysql2 rejects the entire statement. That is normal usage, not an edge case.
+
+Found in **17 sites across 9 repositories**, and it would have fired on every module still
+to be merged. Fixed by dropping undefined entries rather than coercing them to `NULL`:
+
+- on **insert**, omitting the key lets the column's own `DEFAULT` apply
+- on **update**, it means a partial update leaves omitted columns *untouched* instead of
+  overwriting them with `NULL` — which is the more dangerous of the two
+
+Worth noting what this cost: **the file was already written to disk when the insert
+failed**, leaving an orphan upload with no database record. Fixing the insert removed the
+symptom, but the ordering (write file, then insert) is still not atomic.
+
+#### Three "bugs" that were not bugs
+
+Each of these looked like a defect and turned out to be the system defending itself:
+
+| Symptom | Reality |
+|---|---|
+| Upload rejected with `Unexpected field` | multer correctly refusing a field name it was not configured for — my payload said `document`, the route expects `document_file` |
+| `Data truncated for column 'document_type'` | `document_type` is `enum('Aadhaar','PAN','Passport','Driving Licence','GST Certificate','Other')`. `"KYC"` is not a member |
+| Reactivating after delete returned 404 | `DELETE` is a genuine hard delete, and the customer really was gone |
+
+That last one deserves attention, because the schema is doing something clever. Foreign
+keys to `customers` split into two groups:
+
+```
+CASCADE    customer_documents, customer_loyalty, customer_notes   (the customer's own records)
+NO ACTION  bills, payments, customer_orders, customer_ledger,
+           cash_ledger, gold_scheme_enrollments                    (financial history)
+```
+
+So a customer created by mistake can be removed along with their notes and documents, but
+**a customer with any financial history cannot be deleted at all** — the delete fails and
+the service converts it into a clear 400. That is exactly right for an accounting system,
+and it is the fourth time this schema has proven better designed than the code using it.
+
+**Write path fully verified**, including a real multipart upload:
+
+```
+POST   /customers                      201  id 25, code CUS000025
+POST   /customers  duplicate mobile    409  correctly refused
+POST   /customers  empty body          400  correctly rejected
+POST   /customers/:id/notes            201
+POST   /customers/:id/loyalty/earn     200
+POST   /customers/:id/loyalty/redeem   200
+POST   loyalty/redeem beyond balance   400  correctly refused
+PATCH  /customers/:id/vip              200
+PUT    /customers/:id                  200
+POST   /customers/:id/documents        201  file on disk + DB row
+GET    /customers/:id/documents        200  1 document
+PATCH  /customers/:id/activate         200
+DELETE /customers/:id                  200
+GET    deleted customer                404  as expected
+```
+
+**Sweeps**
+
+```
+read  : 59 routes, 59 OK, 0 regressions
 write : 10/10 pass
 ```
 

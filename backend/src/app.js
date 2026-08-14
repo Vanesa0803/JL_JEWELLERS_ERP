@@ -50,6 +50,12 @@ import purityRoutes from "./modules/masters/purity.routes.js";
 import metalTypeRoutes from "./modules/masters/metalType.routes.js";
 import stoneTypeRoutes from "./modules/masters/stoneType.routes.js";
 
+import customerRoutes from "./modules/customers/customer.routes.js";
+import customerDocumentRoutes from "./modules/customers/customerDocument.routes.js";
+import customerNoteRoutes from "./modules/customers/customerNote.routes.js";
+import customerLoyaltyRoutes from "./modules/customers/customerLoyalty.routes.js";
+import customerAnalyticsRoutes from "./modules/customers/customerAnalytics.routes.js";
+
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
@@ -67,6 +73,18 @@ app.use(morgan("dev"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(limiter);
+
+/*
+ * Uploaded customer and supplier documents are written to uploads/ by multer
+ * and served back from here. The folder is git-ignored — these are real
+ * customer KYC documents and must never be committed.
+ *
+ * NOTE: this is served without any authentication, so anyone who can reach the
+ * API can fetch any uploaded document by guessing its path. Acceptable only
+ * because the API is bound to loopback (see server.js). Revisit alongside
+ * S1-3 if the API is ever exposed.
+ */
+app.use("/uploads", express.static("uploads"));
 
 /* ------------------------------------------------------------------ *
  * API
@@ -105,6 +123,26 @@ api.use("/designs", designRoutes);
 api.use("/purity", purityRoutes);
 api.use("/metal-types", metalTypeRoutes);
 api.use("/stone-types", stoneTypeRoutes);
+
+/*
+ * Phase B — customers.
+ *
+ * Five routers deliberately share the /customers base. Each owns a different
+ * sub-path (/:id/documents, /:id/notes, /:id/loyalty/*, /:id/purchase-history)
+ * and Express tries them in order, so the effect is one resource split across
+ * five focused files rather than one large router.
+ *
+ * The customer LEDGER is NOT here. Two implementations existed and Riya's was
+ * chosen — it uses the real customer_ledger table, whereas this branch's
+ * version derived balances from customer_orders as a documented stopgap.
+ * It stays mounted at /ledger. See the duplicate-resolution table in
+ * MERGE_LOG.md.
+ */
+api.use("/customers", customerRoutes);
+api.use("/customers", customerDocumentRoutes);
+api.use("/customers", customerNoteRoutes);
+api.use("/customers", customerLoyaltyRoutes);
+api.use("/customers", customerAnalyticsRoutes);
 
 app.use("/api/v1", api);
 app.use("/api", api); // temporary alias — remove once the frontend moves to /api/v1

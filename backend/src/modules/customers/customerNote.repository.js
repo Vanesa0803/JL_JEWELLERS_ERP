@@ -1,41 +1,35 @@
 import { pool } from '../../config/db.js';
 
-class CategoryRepository {
-    async create(categoryData) {
+class CustomerNoteRepository {
+    async create(noteData) {
         // Drop undefined values so omitted optional fields fall back to the
         // column default instead of failing with "Bind parameters must
         // not contain undefined".
-        const definedEntries = Object.entries(categoryData).filter(
+        const definedEntries = Object.entries(noteData).filter(
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
         const values = definedEntries.map(([, value]) => value);
         const placeholders = fields.map(() => '?').join(', ');
 
-        const query = `INSERT INTO categories (${fields.join(', ')}) VALUES (${placeholders})`;
+        const query = `INSERT INTO customer_notes (${fields.join(', ')}) VALUES (${placeholders})`;
         const [result] = await pool.execute(query, values);
         return result.insertId;
     }
 
-    async findAll() {
-        const query = `SELECT * FROM categories ORDER BY display_order ASC, category_name ASC`;
-        const [rows] = await pool.execute(query);
+    async findByCustomerId(customerId) {
+        const query = `SELECT * FROM customer_notes WHERE customer_id = ? ORDER BY created_at DESC`;
+        const [rows] = await pool.execute(query, [customerId]);
         return rows;
     }
 
-    async findById(id) {
-        const query = `SELECT * FROM categories WHERE category_id = ?`;
-        const [rows] = await pool.execute(query, [id]);
+    async findById(noteId) {
+        const query = `SELECT * FROM customer_notes WHERE note_id = ?`;
+        const [rows] = await pool.execute(query, [noteId]);
         return rows.length > 0 ? rows[0] : null;
     }
 
-    async findByCode(code) {
-        const query = `SELECT * FROM categories WHERE category_code = ?`;
-        const [rows] = await pool.execute(query, [code]);
-        return rows.length > 0 ? rows[0] : null;
-    }
-
-    async update(id, updateData) {
+    async update(noteId, updateData) {
         // Drop undefined values: a partial update must leave omitted
         // columns untouched rather than overwriting them with NULL.
         const definedEntries = Object.entries(updateData).filter(
@@ -46,18 +40,18 @@ class CategoryRepository {
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');
         const values = definedEntries.map(([, value]) => value);
-        values.push(id);
+        values.push(noteId);
 
-        const query = `UPDATE categories SET ${setClause} WHERE category_id = ?`;
+        const query = `UPDATE customer_notes SET ${setClause} WHERE note_id = ?`;
         const [result] = await pool.execute(query, values);
         return result.affectedRows;
     }
 
-    async delete(id) {
-        const query = `DELETE FROM categories WHERE category_id = ?`;
-        const [result] = await pool.execute(query, [id]);
+    async delete(noteId) {
+        const query = `DELETE FROM customer_notes WHERE note_id = ?`;
+        const [result] = await pool.execute(query, [noteId]);
         return result.affectedRows;
     }
 }
 
-export default new CategoryRepository();
+export default new CustomerNoteRepository();

@@ -2,8 +2,14 @@ import { pool } from '../../config/db.js';
 
 class StoneTypeRepository {
     async create(stoneData) {
-        const fields = Object.keys(stoneData);
-        const values = Object.values(stoneData);
+        // Drop undefined values so omitted optional fields fall back to the
+        // column default instead of failing with "Bind parameters must
+        // not contain undefined".
+        const definedEntries = Object.entries(stoneData).filter(
+            ([, value]) => value !== undefined
+        );
+        const fields = definedEntries.map(([key]) => key);
+        const values = definedEntries.map(([, value]) => value);
         const placeholders = fields.map(() => '?').join(', ');
 
         const query = `INSERT INTO stone_types (${fields.join(', ')}) VALUES (${placeholders})`;
@@ -30,11 +36,16 @@ class StoneTypeRepository {
     }
 
     async update(id, updateData) {
-        const fields = Object.keys(updateData);
+        // Drop undefined values: a partial update must leave omitted
+        // columns untouched rather than overwriting them with NULL.
+        const definedEntries = Object.entries(updateData).filter(
+            ([, value]) => value !== undefined
+        );
+        const fields = definedEntries.map(([key]) => key);
         if (fields.length === 0) return 0;
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');
-        const values = Object.values(updateData);
+        const values = definedEntries.map(([, value]) => value);
         values.push(id);
 
         const query = `UPDATE stone_types SET ${setClause} WHERE stone_type_id = ?`;
