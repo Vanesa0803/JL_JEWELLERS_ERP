@@ -1,92 +1,57 @@
-import {
-  ArrowRight,
-  CreditCard,
-  Package,
-  Receipt,
-  UserPlus,
-} from "lucide-react";
+import { Receipt, IndianRupee, Activity } from "lucide-react";
 
-const RecentActivities = () => {
-  const activities = [
-    {
-      icon: Receipt,
-      title: "New bill created",
-      description: "Bill #1024 was created",
-      time: "Recently",
-    },
-    {
-      icon: UserPlus,
-      title: "Customer added",
-      description: "New customer profile created",
-      time: "Recently",
-    },
-    {
-      icon: CreditCard,
-      title: "Payment received",
-      description: "Payment recorded successfully",
-      time: "Recently",
-    },
-    {
-      icon: Package,
-      title: "Inventory updated",
-      description: "Stock quantity was updated",
-      time: "Recently",
-    },
-  ];
+import { relativeTime } from "../../lib/format";
+
+/**
+ * From GET /dashboard -> data.recent_activities, which returns
+ * { type, activity, created_at }.
+ *
+ * `type` is 'Bill' or 'Payment' (a UNION over both tables), so the icon is
+ * chosen from that rather than stored per row.
+ */
+const iconFor = {
+  Bill: Receipt,
+  Payment: IndianRupee,
+};
+
+const RecentActivities = ({ activities, loading }) => {
+  const rows = activities ?? [];
 
   return (
     <section className="min-w-0 rounded-2xl border border-[#E7DED3] bg-white p-6 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-[#2B2622]">
-            Recent Activities
-          </h2>
-
-          <p className="mt-1 text-sm text-[#85786D]">
-            Latest business activities
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="flex shrink-0 items-center gap-1 text-sm font-medium text-[#8A6A1F] hover:text-[#B8860B]"
-        >
-          View all
-          <ArrowRight size={15} />
-        </button>
+      <div>
+        <h2 className="text-lg font-semibold text-[#2B2622]">Recent Activities</h2>
+        <p className="mt-1 text-sm text-[#85786D]">What has happened lately</p>
       </div>
 
-      {/* Activities */}
-      <div className="mt-6 space-y-5">
-        {activities.map((activity, index) => {
-          const Icon = activity.icon;
+      <div className="mt-6 space-y-4">
+        {loading ? (
+          <p className="py-6 text-center text-sm text-[#9B8E83]">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-[#9B8E83]">No activity yet.</p>
+        ) : (
+          rows.map((item, index) => {
+            const Icon = iconFor[item.type] ?? Activity;
 
-          return (
-            <div
-              key={index}
-              className="flex items-start gap-3"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F5EBD9] text-[#B8860B]">
-                <Icon size={17} />
+            return (
+              <div key={`${item.created_at}-${index}`} className="flex gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F5EBD9] text-[#B8860B]">
+                  <Icon size={15} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#2B2622]">
+                    {item.activity}
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-[#9B8E83]">
+                    {item.type} · {relativeTime(item.created_at)}
+                  </p>
+                </div>
               </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-[#2B2622]">
-                  {activity.title}
-                </p>
-
-                <p className="mt-1 text-xs text-[#85786D]">
-                  {activity.description}
-                </p>
-              </div>
-
-              <span className="shrink-0 text-xs text-[#A4978D]">
-                {activity.time}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </section>
   );

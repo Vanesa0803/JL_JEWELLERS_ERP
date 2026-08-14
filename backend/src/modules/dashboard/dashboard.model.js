@@ -211,7 +211,11 @@ const getRecentBills = () => {
 
                 b.grand_total,
 
-                b.bill_date
+                b.bill_date,
+
+                -- The dashboard's Recent Bills table has a Status column that
+                -- had nothing to fill it. bills.payment_status already exists.
+                b.payment_status
 
             FROM bills b
 

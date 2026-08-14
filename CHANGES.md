@@ -635,6 +635,71 @@ permissions — the token carries `role`, but nothing reads it yet), and passwor
 
 ---
 
+## 2.1 — The dashboard now shows real data
+
+**The issue**
+The frontend had **zero** `useEffect` calls across 82 files. Every screen was static
+markup — the dashboard showed ₹0 in all eight cards, four invented bills for "Customer
+Name", and a sales chart of twelve flat months. It looked finished and was connected to
+nothing.
+
+**What we did**
+Wired the dashboard end to end, and built the small amount of shared machinery the rest of
+the screens will need.
+
+| New file | What it does |
+|---|---|
+| `hooks/useApi.js` | Fetches, tracks loading and error, and can reload. Deliberately dependency-free |
+| `lib/format.js` | Indian currency and dates — ₹1,20,000 rather than ₹120,000 |
+
+Then each widget was changed to accept its data as a prop, and the page fetches once:
+
+```
+GET /dashboard  ->  summary, sales_overview, recent_bills,
+                    recent_activities, low_stock_products,
+                    top_selling_products
+```
+
+**One request feeds all seven widgets.** The page talks to the API; the components only
+display. That is the pattern for every screen that follows.
+
+**Verified through the browser path** (via the Vite proxy, exactly as the app does it):
+
+```
+summary.today_bills   0
+summary.pending_pay   331255
+summary.gold_rate     9850
+recent_bills          5 rows   first status: Partial
+recent_activities     10 rows
+top_selling_products  5 rows
+```
+
+**Remarks — three places we changed the design rather than fake the data**
+
+1. **The sales chart said "This Year" with a month dropdown.** The API returns the last
+   **7 days**, and the dropdown was wired to nothing. Both were changed to match reality:
+   the heading now says "last 7 days" and the dead control is gone. A working range picker
+   belongs on `/dashboard/sales-analytics`, which already accepts `from_date` and `to_date`
+   — a small follow-up rather than a lie in the meantime.
+
+2. **Top Selling Products showed a category per product.** The query does not join
+   categories, so the column was removed. A made-up category next to a real product name is
+   worse than no category.
+
+3. **Recent Bills had a Status column with nothing to fill it.** Here the fix went the
+   other way — `bills.payment_status` already existed, so one line was added to the
+   dashboard query. The column now shows real Pending / Partial / Completed values.
+
+**Empty is not the same as zero.** Every figure falls back to an em dash while loading,
+never to ₹0 — "—" reads as *not loaded yet*, while "₹0" reads as *you sold nothing today*.
+And if the request fails, the page says so with a retry button instead of rendering empty
+widgets that look like a business with no customers.
+
+**Also changed:** `services/api.js` now targets `/api/v1` rather than the temporary `/api`
+alias.
+
+---
+
 ## How to run it now
 
 ```bash
