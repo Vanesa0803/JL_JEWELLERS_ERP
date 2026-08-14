@@ -45,6 +45,21 @@ const BASELINE = {
   // moved to `financial_settings`, which already had max_discount_percent.
   "GET /financial-security/": 200,
 
+  // Phase B — masters, recovered from developer-purvansh. This code had never
+  // run before 2026-08-13.
+  "GET /categories": 200,
+  "GET /categories/1": 200,
+  "GET /categories/1/subcategories": 200,
+  "GET /subcategories/1": 200,
+  "GET /designs": 200,
+  "GET /designs/1": 200,
+  "GET /purity": 200,
+  "GET /purity/1": 200,
+  "GET /metal-types": 200,
+  "GET /metal-types/1": 200,
+  "GET /stone-types": 200,
+  "GET /stone-types/1": 200,
+
   // Fixed when the payments module was merged — S2-15. Now expected to pass,
   // so a future change that reintroduces the bug shows up as a regression.
   "GET /payments/history": 200,

@@ -37,6 +37,19 @@ import makerAssignmentRoutes from "./modules/makers/assignment.routes.js";
 import goldSchemeRoutes from "./modules/schemes/scheme.routes.js";
 import financialSecurityRoutes from "./modules/security/security.routes.js";
 
+/* ------------------------------------------------------------------ *
+ * Phase B — modules recovered from developer-purvansh.
+ *
+ * This code was written months ago and had never been mounted anywhere, so
+ * it has never run. Treat failures here as discovery rather than regression.
+ * ------------------------------------------------------------------ */
+import categoryRoutes from "./modules/masters/category.routes.js";
+import subcategoryRoutes from "./modules/masters/subcategory.routes.js";
+import designRoutes from "./modules/masters/design.routes.js";
+import purityRoutes from "./modules/masters/purity.routes.js";
+import metalTypeRoutes from "./modules/masters/metalType.routes.js";
+import stoneTypeRoutes from "./modules/masters/stoneType.routes.js";
+
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
@@ -84,6 +97,14 @@ api.use("/makers", makerRoutes);
 api.use("/maker-assignments", makerAssignmentRoutes);
 api.use("/gold-schemes", goldSchemeRoutes);
 api.use("/financial-security", financialSecurityRoutes);
+
+// Phase B — masters
+api.use("/categories", categoryRoutes);
+api.use("/subcategories", subcategoryRoutes);
+api.use("/designs", designRoutes);
+api.use("/purity", purityRoutes);
+api.use("/metal-types", metalTypeRoutes);
+api.use("/stone-types", stoneTypeRoutes);
 
 app.use("/api/v1", api);
 app.use("/api", api); // temporary alias — remove once the frontend moves to /api/v1

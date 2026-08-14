@@ -42,7 +42,7 @@ It stays on `auth-integration` until feature work resumes.
 | 6 | orders + makers | Riya | ✅ | ✅ | ✅ | **merged — 4 transaction sites pooled via a shared helper** |
 | 7 | schemes | Riya | ✅ | ✅ | ✅ | **merged — last 3 transaction sites pooled** |
 | 8 | security (PIN) | Riya | ✅ | ✅ | ✅ | **merged — S0-8 resolved. PHASE A COMPLETE** |
-| 9 | masters | Purvansh | n/a | ⏳ | ⏳ | not started |
+| 9 | masters | Purvansh | n/a | ✅ | ✅ | **merged — worked first time, never run before** |
 | 10 | customers | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 11 | suppliers | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 12 | products | Purvansh | n/a | ⏳ | ⏳ | not started |
@@ -994,6 +994,70 @@ Still open and deliberately not touched: `S1-3` (route-level auth), the structur
 `S2-18`, `S1-8` (GST-compliant invoice numbering), `S1-9` (GST rates from the table).
 
 **Next: Phase B** — Purvansh's 100 stranded inventory files, which have never run.
+
+---
+
+## PHASE B — recovering the stranded inventory backend
+
+Different character to phase A. That phase converted code that was already running, checked
+against a known baseline. This phase mounts code from `developer-purvansh` that has
+**never executed** — no baseline exists, so the first sweep is discovery, not
+regression-checking.
+
+No conversion needed: it is already ESM, already uses `ApiError`/`ApiResponse`, and its
+`import { pool } from '../config/db.js'` matches what our consolidated `db.js` exports.
+Only the import depth changes, since his layout was layer-first
+(`controllers/`, `services/`) and ours is module-first (`modules/<name>/`).
+
+---
+
+### 9. Masters — ✅ MERGED · 2026-08-13
+
+Categories, subcategories, designs, purity, metal types, stone types. **24 files**
+into `src/modules/masters/`.
+
+**It worked on the first run.** Every endpoint answered with real data from the existing
+database, on code that had never been executed:
+
+| Endpoint | Result |
+|---|---|
+| `GET /categories` | 200 · 8 rows |
+| `GET /categories/1` | 200 |
+| `GET /categories/1/subcategories` | 200 · 2 rows |
+| `GET /subcategories/1` | 200 |
+| `GET /designs` | 200 · 8 rows |
+| `GET /purity` | 200 · 7 rows |
+| `GET /metal-types` | 200 · 3 rows |
+| `GET /stone-types` | 200 · 8 rows |
+
+**Not a bug:** `GET /subcategories` returns 404, because that route deliberately has no
+list handler — subcategories are listed under their parent at
+`/categories/:id/subcategories`. Correct design, and worth recording so nobody "fixes" it.
+
+**Write path checked too:**
+
+```
+POST /categories  {valid}   ->  201  category_id 9
+POST /categories  {}        ->  400  "category_code and category_name are required"
+```
+
+That 400 is the point. It is a **typed** error with a specific message, produced by
+validation in the service layer — the quality difference the earlier measurement found
+between the two codebases. Nothing in phase A validates its input like this.
+
+**Why this module went so smoothly:** it was chosen deliberately as the first phase-B
+merge — six near-identical CRUD entities, depending on nothing and with nothing depending
+on them. The merge plan called it "the safest place to learn the new structure before
+touching anything that matters", and that held.
+
+**Sweeps**
+
+```
+read  : 59 routes, 59 OK, 0 failing, 0 regressions
+write : 10/10 pass
+```
+
+**Verdict: merged.**
 
 ---
 
