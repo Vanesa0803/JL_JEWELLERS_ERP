@@ -47,7 +47,7 @@ It stays on `auth-integration` until feature work resumes.
 | 11 | suppliers | Purvansh | n/a | ✅ | ✅ | **merged — supplier payments deferred to purchase (real dependency)** |
 | 12 | products | Purvansh | n/a | ✅ | ✅ | **merged — cross-module validation working** |
 | 13 | inventory | Purvansh | n/a | ✅ | ✅ | **merged — reported "Pending", was complete** |
-| 14 | purchase | Purvansh | n/a | ⏳ | ⏳ | not started |
+| 14 | purchase | Purvansh | n/a | ✅ | ✅ | **merged — PHASE B COMPLETE** |
 | 15 | auth | auth-integration | ⏳ | ⏳ | ⏳ | not started |
 | 16 | hr (no salary) | auth-integration | ⏳ | ⏳ | ⏳ | not started |
 | — | ~~salary~~ | auth-integration | — | — | — | **deferred — would need writing** |
@@ -1376,6 +1376,108 @@ write : 10/10 pass
 ```
 
 **Verdict: merged.**
+
+---
+
+### 14. Purchase — ✅ MERGED · 2026-08-13 · **PHASE B COMPLETE**
+
+**16 files** into `src/modules/purchase/`: purchase orders, GRN, purchase returns, and the
+supplier payments deferred from module 11. The most interconnected module — four services
+reach into suppliers, and payments settle against purchase orders.
+
+**The full purchase cycle runs:**
+
+```
+POST /purchase-orders                    201  PO created with line items
+POST duplicate PO number                 409  correctly refused
+POST PO for nonexistent supplier         404  correctly refused
+POST /grn                                201  goods received against the PO
+POST /supplier-payments                  201  supplier paid against the PO
+POST payment for nonexistent supplier    404  correctly refused
+POST /purchase-returns                   201  goods returned against the GRN
+GET  /purchase-orders/:id                200  1 item
+GET  /grn/:id                            200  1 item
+```
+
+#### `S2-19` — receiving goods does not update stock
+
+Created a PO for 10 units, received all 10 via GRN. `available_quantity` stayed at **25**.
+
+`grn.service.js` and `grn.repository.js` contain **no reference to inventory at all**. The
+receipt is recorded, but stock is not increased — so the purchase cycle does not close and
+someone has to add stock by hand with `POST /inventory/in` after every delivery. Recorded
+stock will drift from what is on the shelf.
+
+**Logged, not fixed.** This is missing business logic rather than a defect in existing
+code — it needs writing, which is feature work and outside this phase's scope.
+
+#### Bug fixed — `purchase_returns` rejected its own payload
+
+`POST /purchase-returns` failed with `Unknown column 'items' in 'field list'`. The service
+passed the caller's entire payload to a repository that builds its INSERT from
+`Object.keys(data)`, so `items` became a column name.
+
+Sending `items` is a reasonable thing to try, since purchase *orders* take one — but a
+purchase return has no line items; it is a single header row against a GRN, and there is
+no `purchase_return_items` table. `purchaseOrder.service.js` already strips items this way;
+this service did not.
+
+Fixed by picking the real columns explicitly, which also stops a caller writing to fields
+it should not (`S1-7`).
+
+#### The rate limiter would have broken the real app
+
+Running the sweep twice started returning **429 Too Many Requests for everything**. The
+limiter was set to **100 requests per 15 minutes across the entire API** — sensible for a
+public service, badly wrong here:
+
+- a single dashboard load already makes several calls
+- the sweep is ~100 calls on its own
+- this is a single-operator desktop app on loopback, so every request is that one person
+
+**A shopkeeper billing customers all afternoon would have hit this and watched the whole
+app stop responding**, with a message about "too many requests" that explains nothing.
+Raised to 2000/15 min. The control actually needed is a tight limit on the **login** route
+specifically — that is `S2-14`, still open.
+
+Worth noting how this surfaced: only because the test suite had grown large enough to look
+like real usage. A ten-endpoint sweep would never have found it.
+
+---
+
+## PHASE B COMPLETE — the stranded backend is recovered
+
+All **100 files** from `developer-purvansh` are merged. That code had never been mounted
+anywhere and had never run.
+
+| Module | Files | First-run result |
+|---|:--:|---|
+| masters | 24 | all 8 endpoints worked immediately |
+| customers | 20 | all 12 read endpoints worked; 2 write bugs fixed |
+| suppliers | 8 | worked; 1 schema asymmetry fixed |
+| products | 8 | all 7 worked; cross-module validation confirmed |
+| inventory | 8 | all 14 worked, including stock operations |
+| purchase | 16 | full cycle runs; 1 bug fixed, 1 gap logged |
+
+**The original status report called inventory "⏳ Pending" and supplier work "🔄 In
+Development". Both were finished.** They had simply never been mounted, so nobody — including
+their authors — had seen them run.
+
+### Final state
+
+```
+read  : 90 routes, 90 OK, 0 failing, 0 regressions
+write : 10 checks, 10 pass
+stable across back-to-back runs
+```
+
+| | Session start | Now |
+|---|:--:|:--:|
+| Endpoints answering | 8 | **90** |
+| Known-broken endpoints | 7 | **0** |
+| Write paths tested | 0 | **10** |
+| Modules merged | 0 | **14** |
+| Migrations applied | 0 | 6 |
 
 ---
 

@@ -65,6 +65,11 @@ import productVariantRoutes from "./modules/products/productVariant.routes.js";
 import inventoryRoutes from "./modules/inventory/inventory.routes.js";
 import inventoryAnalyticsRoutes from "./modules/inventory/inventoryAnalytics.routes.js";
 
+import purchaseOrderRoutes from "./modules/purchase/purchaseOrder.routes.js";
+import grnRoutes from "./modules/purchase/grn.routes.js";
+import purchaseReturnRoutes from "./modules/purchase/purchaseReturn.routes.js";
+import supplierPaymentRoutes from "./modules/purchase/supplierPayment.routes.js";
+
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
@@ -170,6 +175,16 @@ api.use("/product-variants", productVariantRoutes);
 // Phase B — inventory
 api.use("/inventory", inventoryRoutes);
 api.use("/inventory-analytics", inventoryAnalyticsRoutes);
+
+/*
+ * Phase B — purchase. Supplier payments live here rather than with suppliers:
+ * a payment is settled against a purchase order, so its service imports
+ * PurchaseOrderRepository.
+ */
+api.use("/purchase-orders", purchaseOrderRoutes);
+api.use("/grn", grnRoutes);
+api.use("/purchase-returns", purchaseReturnRoutes);
+api.use("/supplier-payments", supplierPaymentRoutes);
 
 app.use("/api/v1", api);
 app.use("/api", api); // temporary alias — remove once the frontend moves to /api/v1
