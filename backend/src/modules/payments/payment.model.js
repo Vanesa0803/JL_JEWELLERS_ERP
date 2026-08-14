@@ -1,4 +1,4 @@
-import connection from "../../config/db.js";
+import connection, { callbackPool } from "../../config/db.js";
 
 const getBillById = (billId) => {
 
@@ -218,9 +218,37 @@ const getPaidAmountForBill = (billId) => {
 
 };
 
+/**
+ * Record an advance payment taken from a customer.
+ *
+ * Wrapped in a transaction (S2-18). The two inserts used to run without one,
+ * so a failure on the second left an orphan `payments` row with no matching
+ * `payment_details` — money on record with no idea how it was taken.
+ */
 const createAdvancePayment = (paymentData) => {
 
     return new Promise((resolve, reject) => {
+
+      callbackPool.getConnection((connectionError, connection) => {
+
+        if (connectionError) {
+            return reject(connectionError);
+        }
+
+        const done = (error, value) => {
+            connection.release();
+            return error ? reject(error) : resolve(value);
+        };
+
+        const abort = (error) => {
+            connection.rollback(() => done(error));
+        };
+
+        connection.beginTransaction((transactionError) => {
+
+        if (transactionError) {
+            return done(transactionError);
+        }
 
         const paymentQuery = `
             INSERT INTO payments
@@ -251,7 +279,7 @@ const createAdvancePayment = (paymentData) => {
             (err, result) => {
 
                 if (err) {
-                    return reject(err);
+                    return abort(err);
                 }
 
                 const paymentId = result.insertId;
@@ -281,15 +309,23 @@ const createAdvancePayment = (paymentData) => {
                     (err) => {
 
                         if (err) {
-                            return reject(err);
+                            return abort(err);
                         }
 
-                        resolve({
+                        connection.commit((commitError) => {
 
-                            payment_id: paymentId,
+                            if (commitError) {
+                                return abort(commitError);
+                            }
 
-                            message:
-                                "Advance payment recorded successfully."
+                            done(null, {
+
+                                payment_id: paymentId,
+
+                                message:
+                                    "Advance payment recorded successfully."
+
+                            });
 
                         });
 
@@ -300,6 +336,10 @@ const createAdvancePayment = (paymentData) => {
             }
 
         );
+
+        });
+
+      });
 
     });
 

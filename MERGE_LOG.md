@@ -466,6 +466,25 @@ testing should have existed from the start. Logged as `S2-18`, to be fixed toget
 The advance write test uses `Card` for now to isolate the feature from the cash-book
 blocker, with a comment to switch it back to `Cash` once that is resolved.
 
+**`S2-18` half fixed — and the half that remains is worth being precise about.**
+
+*Model level — fixed.* `createAdvancePayment` now wraps both inserts in one transaction
+on a pooled connection, same pattern as billing. A failure between the `payments` and
+`payment_details` inserts rolls back cleanly instead of leaving money on record with no
+idea how it was taken.
+
+*Service level — still open.* `payment.service.js` calls `cashBookService` **after** the
+model's transaction has already committed. So a Cash advance still commits, then fails at
+the cash book, and the caller gets an error for a payment that was saved. Re-tested after
+the fix: a failing Cash advance still leaves **1** orphan row.
+
+Fixing that needs the cash-book write inside the same transaction, which cannot happen
+until `S0-7` is decided. Card, UPI and Bank Transfer advances are unaffected — only Cash
+touches the cash book.
+
+Recorded as half-done rather than closed. Claiming `S2-18` fixed on the strength of the
+model change would have been wrong, and the orphan check is what caught it.
+
 #### `S0-7` reclassified — the cash book is not a rename
 
 Checked against the live database:
