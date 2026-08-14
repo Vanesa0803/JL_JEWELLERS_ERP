@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
   Search,
   Plus,
@@ -15,74 +16,42 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
+import api from "../../services/api";
+import { shortDate } from "../../lib/format";
+
 /* =========================================================
-   MOCK CUSTOMER DATA
+   API <-> PAGE SHAPE
 ========================================================= */
 
-const initialCustomers = [
-  {
-    id: 101,
-    name: "Rahul Sharma",
-    mobile: "9876543210",
-    email: "rahul.sharma@gmail.com",
-    status: "Active",
-    vip: true,
-    customerType: "VIP",
-    createdAt: "08 Aug 2026",
-  },
-  {
-    id: 102,
-    name: "Priya Singh",
-    mobile: "9812345678",
-    email: "priya.singh@gmail.com",
-    status: "Active",
-    vip: false,
-    customerType: "Regular",
-    createdAt: "07 Aug 2026",
-  },
-  {
-    id: 103,
-    name: "Amit Kumar",
-    mobile: "9898989898",
-    email: "amit.kumar@gmail.com",
-    status: "Active",
-    vip: true,
-    customerType: "VIP",
-    createdAt: "06 Aug 2026",
-  },
-  {
-    id: 104,
-    name: "Neha Verma",
-    mobile: "9765432109",
-    email: "neha.verma@gmail.com",
-    status: "Inactive",
-    vip: false,
-    customerType: "Regular",
-    createdAt: "05 Aug 2026",
-  },
-  {
-    id: 105,
-    name: "Karan Mehta",
-    mobile: "9988776655",
-    email: "karan.mehta@gmail.com",
-    status: "Active",
-    vip: false,
-    customerType: "Wholesale",
-    createdAt: "04 Aug 2026",
-  },
-  {
-    id: 106,
-    name: "Anjali Gupta",
-    mobile: "9876123456",
-    email: "anjali.gupta@gmail.com",
-    status: "Active",
-    vip: true,
-    customerType: "VIP",
-    createdAt: "03 Aug 2026",
-  },
-];
+/**
+ * Maps an API customer onto the shape this page was written against.
+ *
+ * The page predates the API and uses its own field names, so rather than
+ * rename several hundred lines of JSX, the translation happens here in one
+ * place. Note `vip`: there is no is_vip column — VIP is customer_type,
+ * enum('Regular','VIP','Wholesale').
+ */
+const fromApi = (customer) => ({
+  id: customer.customer_id,
+  code: customer.customer_code,
+  name: [customer.first_name, customer.last_name].filter(Boolean).join(" "),
+  first_name: customer.first_name,
+  last_name: customer.last_name,
+  mobile: customer.mobile,
+  email: customer.email || "—",
+  city: customer.city,
+  status: customer.status,
+  vip: customer.customer_type === "VIP",
+  customerType: customer.customer_type,
+  loyaltyPoints: customer.loyalty_points,
+  createdAt: shortDate(customer.created_at),
+});
+
+
 
 /* =========================================================
    MAIN COMPONENT
@@ -91,7 +60,41 @@ const initialCustomers = [
 const Customers = () => {
   const navigate = useNavigate();
 
-  const [customers, setCustomers] = useState(initialCustomers);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  /*
+   * The list is fetched once with a high limit and then filtered, sorted and
+   * paged in the browser, because that is how this page was already written.
+   *
+   * The API supports all of it server-side — search, customer_type, status,
+   * sortBy, sortOrder, page, limit — which is the right way round once the
+   * shop has thousands of customers. Moving to it means debouncing the search
+   * box and refetching on every filter change, so it is left as a deliberate
+   * follow-up rather than smuggled in with the wiring.
+   */
+  const loadCustomers = async () => {
+    setLoading(true);
+    setLoadError(null);
+
+    try {
+      const response = await api.get("/customers", { params: { limit: 500 } });
+      const rows = response.data?.data?.customers ?? [];
+      setCustomers(rows.map(fromApi));
+    } catch (error) {
+      setLoadError(
+        error.response?.data?.message || error.message || "Could not load customers"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
@@ -212,75 +215,115 @@ const Customers = () => {
      ADD CUSTOMER
   ========================================================= */
 
-  const handleAddCustomer = () => {
+  const handleAddCustomer = async () => {
     if (!newCustomer.name || !newCustomer.mobile) {
       return;
     }
 
-    const customer = {
-      id: Date.now(),
-      name: newCustomer.name,
-      mobile: newCustomer.mobile,
-      email: newCustomer.email || "—",
-      status: "Active",
-      vip: false,
-      customerType: "Regular",
-      createdAt: "08 Aug 2026",
-    };
+    setSaving(true);
 
-    setCustomers((previous) => [
-      customer,
-      ...previous,
-    ]);
+    try {
+      // The API takes first and last name separately. Everything after the
+      // first space becomes the surname, which handles "Rahul Kumar Sharma"
+      // sensibly and leaves a single-word name with no surname.
+      const [firstName, ...rest] = newCustomer.name.trim().split(/\s+/);
 
-    setNewCustomer({
-      name: "",
-      mobile: "",
-      email: "",
-    });
+      await api.post("/customers", {
+        first_name: firstName,
+        last_name: rest.join(" ") || null,
+        mobile: newCustomer.mobile.trim(),
+        email: newCustomer.email?.trim() || null,
+        customer_type: "Regular",
+      });
 
-    setShowAddCustomer(false);
+      toast.success("Customer added");
+
+      setNewCustomer({ name: "", mobile: "", email: "" });
+      setShowAddCustomer(false);
+
+      // Refetch rather than push the new row in locally: the server generates
+      // customer_code from the new id, so only it knows the finished record.
+      await loadCustomers();
+    } catch (error) {
+      // 409 is a duplicate mobile, which is the common case and worth saying
+      // plainly rather than as "request failed".
+      toast.error(
+        error.response?.data?.message || error.message || "Could not add customer"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* =========================================================
      TOGGLE CUSTOMER STATUS
   ========================================================= */
 
-  const toggleStatus = (id) => {
+  const toggleStatus = async (id) => {
+    setShowActions(null);
+
+    const customer = customers.find((c) => c.id === id);
+    if (!customer) return;
+
+    const next = customer.status === "Active" ? "Inactive" : "Active";
+
+    // Update on screen immediately, then put it back if the server refuses.
+    // A status toggle should feel instant; waiting on a round trip to redraw
+    // a pill makes the whole page feel slow.
     setCustomers((previous) =>
-      previous.map((customer) =>
-        customer.id === id
-          ? {
-              ...customer,
-              status:
-                customer.status === "Active"
-                  ? "Inactive"
-                  : "Active",
-            }
-          : customer
-      )
+      previous.map((c) => (c.id === id ? { ...c, status: next } : c))
     );
 
-    setShowActions(null);
+    try {
+      await api.patch(`/customers/${id}/activate`, { status: next });
+      toast.success(`Customer marked ${next}`);
+    } catch (error) {
+      setCustomers((previous) =>
+        previous.map((c) => (c.id === id ? { ...c, status: customer.status } : c))
+      );
+      toast.error(error.response?.data?.message || "Could not change status");
+    }
   };
 
   /* =========================================================
      TOGGLE VIP
   ========================================================= */
 
-  const toggleVIP = (id) => {
+  const toggleVIP = async (id) => {
+    setShowActions(null);
+
+    const customer = customers.find((c) => c.id === id);
+    if (!customer) return;
+
+    // VIP is not a flag: it is customer_type, enum('Regular','VIP','Wholesale').
+    // Turning VIP off returns the customer to Regular — which would be wrong
+    // for a Wholesale customer, so leave those alone.
+    if (!customer.vip && customer.customerType === "Wholesale") {
+      toast.error("A wholesale customer cannot be marked VIP");
+      return;
+    }
+
+    const nextType = customer.vip ? "Regular" : "VIP";
+
     setCustomers((previous) =>
-      previous.map((customer) =>
-        customer.id === id
-          ? {
-              ...customer,
-              vip: !customer.vip,
-            }
-          : customer
+      previous.map((c) =>
+        c.id === id ? { ...c, vip: !c.vip, customerType: nextType } : c
       )
     );
 
-    setShowActions(null);
+    try {
+      await api.patch(`/customers/${id}/vip`, { customer_type: nextType });
+      toast.success(nextType === "VIP" ? "Marked as VIP" : "VIP removed");
+    } catch (error) {
+      setCustomers((previous) =>
+        previous.map((c) =>
+          c.id === id
+            ? { ...c, vip: customer.vip, customerType: customer.customerType }
+            : c
+        )
+      );
+      toast.error(error.response?.data?.message || "Could not update VIP status");
+    }
   };
 
   /* =========================================================
@@ -292,19 +335,37 @@ const Customers = () => {
     setShowActions(null);
   };
 
-  const confirmDeleteCustomer = () => {
+  const confirmDeleteCustomer = async () => {
     if (!customerToDelete) {
       return;
     }
 
-    setCustomers((previous) =>
-      previous.filter(
-        (customer) =>
-          customer.id !== customerToDelete.id
-      )
-    );
+    setSaving(true);
 
-    setCustomerToDelete(null);
+    try {
+      await api.delete(`/customers/${customerToDelete.id}`);
+
+      setCustomers((previous) =>
+        previous.filter((customer) => customer.id !== customerToDelete.id)
+      );
+
+      toast.success("Customer deleted");
+      setCustomerToDelete(null);
+    } catch (error) {
+      /*
+       * A customer with bills, payments, orders or ledger entries CANNOT be
+       * deleted — those foreign keys are NO ACTION, deliberately. The server
+       * turns that into a clear 400, so show its message rather than a generic
+       * failure: "they have associated records" tells the user why, and that
+       * they should mark the customer Inactive instead.
+       */
+      toast.error(
+        error.response?.data?.message || "Could not delete this customer"
+      );
+      setCustomerToDelete(null);
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* =========================================================
@@ -524,7 +585,52 @@ const Customers = () => {
 
             <tbody>
 
-              {filteredCustomers.length === 0 ? (
+              {/*
+                Three different empty states, because they mean different
+                things: still loading, the request failed, or there genuinely
+                are no matches. Showing "No customers found" while a request is
+                in flight — or after it failed — would be a lie.
+              */}
+              {loading ? (
+
+                <tr>
+                  <td colSpan="8">
+                    <div className="py-14 text-center text-sm text-[#9B8E83]">
+                      Loading customers…
+                    </div>
+                  </td>
+                </tr>
+
+              ) : loadError ? (
+
+                <tr>
+                  <td colSpan="8">
+                    <div className="flex flex-col items-center justify-center py-14 text-center">
+
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FBF1EF]">
+                        <AlertCircle size={21} className="text-[#A33A2B]" />
+                      </div>
+
+                      <p className="text-sm font-medium text-[#A33A2B]">
+                        Could not load customers
+                      </p>
+
+                      <p className="mt-1 text-xs text-[#8A5049]">{loadError}</p>
+
+                      <button
+                        type="button"
+                        onClick={loadCustomers}
+                        className="mt-4 flex items-center gap-2 rounded-lg border border-[#E7DED3] bg-white px-4 py-2 text-xs font-medium text-[#5F554D] hover:bg-[#F7F3EE]"
+                      >
+                        <RefreshCw size={13} />
+                        Try again
+                      </button>
+
+                    </div>
+                  </td>
+                </tr>
+
+              ) : filteredCustomers.length === 0 ? (
 
                 <tr>
 
@@ -542,11 +648,15 @@ const Customers = () => {
                       </div>
 
                       <p className="text-sm font-medium text-[#665C54]">
-                        No customers found
+                        {customers.length === 0
+                          ? "No customers yet"
+                          : "No customers found"}
                       </p>
 
                       <p className="mt-1 text-xs text-[#9B8E83]">
-                        Try changing your search or filters.
+                        {customers.length === 0
+                          ? "Add your first customer to get started."
+                          : "Try changing your search or filters."}
                       </p>
 
                     </div>
