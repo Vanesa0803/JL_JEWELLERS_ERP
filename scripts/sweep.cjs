@@ -45,6 +45,21 @@ const BASELINE = {
   // moved to `financial_settings`, which already had max_discount_percent.
   "GET /financial-security/": 200,
 
+  // Phase B — customers and suppliers.
+  "GET /customers": 200,
+  "GET /customers/3": 200,
+  "GET /customers/3/documents": 200,
+  "GET /customers/3/notes": 200,
+  "GET /customers/3/loyalty/history": 200,
+  "GET /customers/vip/list": 200,
+  "GET /customers/3/purchase-history": 200,
+  "GET /customers/3/ltv": 200,
+  "GET /customers/tracking/birthdays": 200,
+  "GET /customers/tracking/anniversaries": 200,
+  "GET /suppliers": 200,
+  "GET /suppliers/1": 200,
+  "GET /suppliers/1/documents": 200,
+
   // Phase B — masters, recovered from developer-purvansh. This code had never
   // run before 2026-08-13.
   "GET /categories": 200,

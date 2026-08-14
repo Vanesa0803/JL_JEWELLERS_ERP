@@ -56,6 +56,9 @@ import customerNoteRoutes from "./modules/customers/customerNote.routes.js";
 import customerLoyaltyRoutes from "./modules/customers/customerLoyalty.routes.js";
 import customerAnalyticsRoutes from "./modules/customers/customerAnalytics.routes.js";
 
+import supplierRoutes from "./modules/suppliers/supplier.routes.js";
+import supplierDocumentRoutes from "./modules/suppliers/supplierDocument.routes.js";
+
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
@@ -143,6 +146,16 @@ api.use("/customers", customerDocumentRoutes);
 api.use("/customers", customerNoteRoutes);
 api.use("/customers", customerLoyaltyRoutes);
 api.use("/customers", customerAnalyticsRoutes);
+
+/*
+ * Phase B — suppliers. Same split-router shape as customers.
+ * The supplier LEDGER is not here either: Riya's covers all six ledger types
+ * and stays mounted at /ledger/supplier.
+ */
+api.use("/suppliers", supplierRoutes);
+api.use("/suppliers", supplierDocumentRoutes);
+// Supplier payments land with the purchase module — a payment is made against
+// a purchase order, and its service imports PurchaseOrderRepository.
 
 app.use("/api/v1", api);
 app.use("/api", api); // temporary alias — remove once the frontend moves to /api/v1

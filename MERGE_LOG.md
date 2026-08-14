@@ -44,7 +44,7 @@ It stays on `auth-integration` until feature work resumes.
 | 8 | security (PIN) | Riya | ✅ | ✅ | ✅ | **merged — S0-8 resolved. PHASE A COMPLETE** |
 | 9 | masters | Purvansh | n/a | ✅ | ✅ | **merged — worked first time, never run before** |
 | 10 | customers | Purvansh | n/a | ✅ | ✅ | **merged — 1 systemic bug fixed across 17 sites** |
-| 11 | suppliers | Purvansh | n/a | ⏳ | ⏳ | not started |
+| 11 | suppliers | Purvansh | n/a | ✅ | ✅ | **merged — supplier payments deferred to purchase (real dependency)** |
 | 12 | products | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 13 | inventory | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 14 | purchase | Purvansh | n/a | ⏳ | ⏳ | not started |
@@ -1160,6 +1160,78 @@ GET    deleted customer                404  as expected
 
 ```
 read  : 59 routes, 59 OK, 0 regressions
+write : 10/10 pass
+```
+
+**Verdict: merged.**
+
+---
+
+### 11. Suppliers — ✅ MERGED · 2026-08-13
+
+**8 files** into `src/modules/suppliers/`: supplier CRUD and supplier documents.
+
+**`supplierLedger` excluded** — Riya's covers all six ledger types and stays at
+`/ledger/supplier`.
+
+#### Supplier payments deferred — a real dependency, not a preference
+
+The merge plan grouped supplier payments under suppliers. Mounting it failed:
+
+```
+Cannot find module '.../suppliers/purchaseOrder.repository.js'
+imported from .../suppliers/supplierPayment.service.js
+```
+
+A supplier payment is made **against a purchase order**, so its service imports
+`PurchaseOrderRepository`. It belongs with the purchase module, not this one. Deferred
+rather than forced — dragging `purchaseOrder.repository.js` in early would have split the
+purchase module across two merges for no benefit.
+
+This is the dependency ordering the merge plan was meant to enforce, correcting itself
+against reality. Worth noting that the plan's *grouping* was wrong while its *principle*
+was right.
+
+#### Both earlier fixes paid off immediately
+
+`SUP000006` was derived correctly on the first create — migration `_05` had already made
+`supplier_code` nullable for exactly this pattern. And the repository builders were fixed
+for `undefined` values before they were ever run here.
+
+Two bugs found in customers that never had to be found again.
+
+#### One new bug — another parallel-table asymmetry
+
+`GET /suppliers/:id/documents` failed with `Unknown column 'status' in 'where clause'`.
+
+`customer_documents` and `supplier_documents` are the same kind of record, and the code
+treats them identically — both list only active documents and soft-delete by setting
+`status`. The schema gave the column to only one:
+
+```
+customer_documents  ... document_file, remarks, status, created_at ...
+supplier_documents  ... document_file, remarks,         created_at ...
+```
+
+Exactly the shape of the income/expenses split in migration `_03`. Migration
+`2026-08-13_06` adds the column rather than stripping the soft-delete from the supplier
+side — which would have meant deleting real KYC documents outright instead of hiding them.
+
+**Write path verified**
+
+```
+POST   /suppliers                    201  id 6, code SUP000006
+POST   /suppliers duplicate mobile   409  correctly refused
+PUT    /suppliers/:id                200
+POST   /suppliers/:id/documents      201  file + DB row
+GET    /suppliers/:id/documents      200  1 document
+DELETE /suppliers/:id                200
+```
+
+**Sweeps**
+
+```
+read  : 72 routes, 72 OK, 0 regressions
 write : 10/10 pass
 ```
 
