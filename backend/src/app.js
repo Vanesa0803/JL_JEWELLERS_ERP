@@ -59,6 +59,9 @@ import customerAnalyticsRoutes from "./modules/customers/customerAnalytics.route
 import supplierRoutes from "./modules/suppliers/supplier.routes.js";
 import supplierDocumentRoutes from "./modules/suppliers/supplierDocument.routes.js";
 
+import productRoutes from "./modules/products/product.routes.js";
+import productVariantRoutes from "./modules/products/productVariant.routes.js";
+
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
@@ -156,6 +159,10 @@ api.use("/suppliers", supplierRoutes);
 api.use("/suppliers", supplierDocumentRoutes);
 // Supplier payments land with the purchase module — a payment is made against
 // a purchase order, and its service imports PurchaseOrderRepository.
+
+// Phase B — products
+api.use("/products", productRoutes);
+api.use("/product-variants", productVariantRoutes);
 
 app.use("/api/v1", api);
 app.use("/api", api); // temporary alias — remove once the frontend moves to /api/v1

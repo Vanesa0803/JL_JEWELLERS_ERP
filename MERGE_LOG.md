@@ -45,7 +45,7 @@ It stays on `auth-integration` until feature work resumes.
 | 9 | masters | Purvansh | n/a | ✅ | ✅ | **merged — worked first time, never run before** |
 | 10 | customers | Purvansh | n/a | ✅ | ✅ | **merged — 1 systemic bug fixed across 17 sites** |
 | 11 | suppliers | Purvansh | n/a | ✅ | ✅ | **merged — supplier payments deferred to purchase (real dependency)** |
-| 12 | products | Purvansh | n/a | ⏳ | ⏳ | not started |
+| 12 | products | Purvansh | n/a | ✅ | ✅ | **merged — cross-module validation working** |
 | 13 | inventory | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 14 | purchase | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 15 | auth | auth-integration | ⏳ | ⏳ | ⏳ | not started |
@@ -1232,6 +1232,82 @@ DELETE /suppliers/:id                200
 
 ```
 read  : 72 routes, 72 OK, 0 regressions
+write : 10/10 pass
+```
+
+**Verdict: merged.**
+
+---
+
+### 12. Products — ✅ MERGED · 2026-08-13
+
+**8 files** into `src/modules/products/`: products, variants, barcodes and images.
+
+#### First real cross-module dependency — and it works
+
+`product.service.js` validates a new product against the master lists before creating it,
+importing three repositories that now live in a different module:
+
+```js
+import CategoryRepository  from '../masters/category.repository.js';
+import MetalTypeRepository from '../masters/metalType.repository.js';
+import PurityRepository    from '../masters/purity.repository.js';
+```
+
+The path-rewriting script would have pointed these at `./`, since in his layer-first
+layout they were siblings. Caught by checking every local import resolves to a file that
+exists — a check now worth running on every extraction.
+
+**Verified live:** creating a product with `category_id: 99999` returns **404**, not a
+foreign-key 500. The service checks the master list first and produces a proper error.
+That is masters and products genuinely integrated, not just co-mounted.
+
+All 7 read endpoints answered on the first run.
+
+#### Not a bug — the schema separates SKU from measurements
+
+`POST /products` first failed with `Unknown column 'gross_weight'`. That was my payload:
+
+```
+products          product_id, product_code, product_name, category_id,
+                  subcategory_id, design_id, metal_type_id, purity_id,
+                  stone_type_id, hsn_code, description, is_customizable, is_active
+
+product_variants  variant_id, product_id, variant_code, size, gross_weight,
+                  net_weight, stone_weight, making_charge_type,
+                  making_charge_value, wastage_percentage, status
+```
+
+A product is the **design**; a variant is the **physical item** with weights and making
+charges. Correct modelling for jewellery — one ring design exists in several sizes and
+weights — and another instance of the schema being right.
+
+#### Third upload path verified
+
+`POST /products/:id/images` writes to `uploads/products/product_<id>/`. The field is
+`image_file` (customers use `document_file`, suppliers likewise) — worth noting, since
+each route configures multer with its own field name and a mismatch returns a confusing
+`Unexpected field` 500.
+
+**Write path verified**
+
+```
+POST   /products                      201  id 16
+POST   duplicate product_code         409  correctly refused
+POST   with nonexistent category      404  correctly refused (cross-module check)
+POST   empty body                     400  correctly rejected
+POST   /products/:id/variants         201  variant created
+GET    /products/:id/variants         200  1 variant
+PUT    /products/:id                  200
+POST   /products/:id/images           201  file on disk + DB row
+GET    /products/:id/images           200  1 image
+DELETE /products/:id                  200
+```
+
+**Sweeps**
+
+```
+read  : 77 routes, 77 OK, 0 regressions
 write : 10/10 pass
 ```
 

@@ -59,6 +59,11 @@ const BASELINE = {
   "GET /suppliers": 200,
   "GET /suppliers/1": 200,
   "GET /suppliers/1/documents": 200,
+  "GET /products": 200,
+  "GET /products/1": 200,
+  "GET /products/1/variants": 200,
+  "GET /products/1/barcodes": 200,
+  "GET /products/1/images": 200,
 
   // Phase B — masters, recovered from developer-purvansh. This code had never
   // run before 2026-08-13.
