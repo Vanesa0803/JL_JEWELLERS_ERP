@@ -1,4 +1,5 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
+import { withTransaction } from "../../utils/withTransaction.js";
 
 // Create Scheme Type
 const createSchemeType = (data) => {
@@ -228,15 +229,7 @@ const deactivateSchemeType = (id) => {
 
 const createEnrollment = (data) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -435,11 +428,9 @@ const createEnrollment = (data) => {
 
                 }
 
-                });
+    });
 
-                });
-
-                };
+};
 
 const getSchemeTypeForEnrollment = (schemeTypeId) => {
 
@@ -569,15 +560,7 @@ const getEnrollmentById = (id) => {
 
 const payInstallment = (data) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -826,10 +809,8 @@ const payInstallment = (data) => {
 
                 }
 
-            });
-
-        });
-};  
+    });
+};
 
 const getInstallmentHistory = (enrollmentId) => {
 
@@ -991,15 +972,7 @@ const getMissedInstallments = () => {
 
 const processSchemeMaturity = (enrollmentId) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -1205,13 +1178,11 @@ const processSchemeMaturity = (enrollmentId) => {
 
             }
 
-        });
-
     });
 
 };
 
-module.exports = {
+export {
 
     createSchemeType,
     getAllSchemeTypes,
@@ -1228,4 +1199,23 @@ module.exports = {
     getMissedInstallments,
     processSchemeMaturity
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createSchemeType,
+    getAllSchemeTypes,
+    getSchemeTypeById,
+    updateSchemeType,
+    deactivateSchemeType,
+    createEnrollment,
+    getSchemeTypeForEnrollment,
+    getAllEnrollments,
+    getEnrollmentById,
+    payInstallment,
+    getInstallmentHistory,
+    getLedgerHistory,
+    getMissedInstallments,
+    processSchemeMaturity,
 };

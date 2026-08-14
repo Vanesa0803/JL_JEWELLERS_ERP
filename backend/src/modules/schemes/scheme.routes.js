@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const goldSchemeController =
-require("../controllers/goldSchemeController.cjs");
+import goldSchemeController from "./scheme.controller.js";
 
 router.post(
     "/types",
@@ -70,4 +69,4 @@ router.patch(
     goldSchemeController.deactivateSchemeType
 );
 
-module.exports = router;
+export default router;

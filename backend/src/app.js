@@ -39,9 +39,9 @@ import analyticsRoutes from "./modules/reports/analytics.routes.js";
 import customerOrderRoutes from "./modules/orders/order.routes.js";
 import makerRoutes from "./modules/makers/maker.routes.js";
 import makerAssignmentRoutes from "./modules/makers/assignment.routes.js";
+import goldSchemeRoutes from "./modules/schemes/scheme.routes.js";
 
 // Still bridged as CommonJS, awaiting their turn
-import goldSchemeRoutes from "./routes/goldSchemeRoutes.cjs";
 import financialSecurityRoutes from "./routes/financialSecurityRoutes.cjs";
 import limiter from "./middleware/rateLimiter.cjs";
 

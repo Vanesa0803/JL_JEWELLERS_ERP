@@ -270,6 +270,53 @@ const line = (label, ok, detail) =>
   }
 
   /* ---------------------------------------------------------------- *
+   * Gold scheme — three transaction sites (createEnrollment,
+   * payInstallment, processSchemeMaturity) were moved onto pooled
+   * connections. Enrollment is the one that fans out across several
+   * tables, so it is the meaningful one to exercise.
+   * ---------------------------------------------------------------- */
+  const schemeType = await post("/gold-schemes/types", {
+    // scheme_code is short — keep the unique suffix small
+    scheme_code: `SW${String(Date.now()).slice(-6)}`,
+    scheme_name: "SWEEP-TEST scheme",
+    scheme_description: "created by sweep-writes.cjs",
+    installment_type: "Amount",
+    installment_amount: 1000,
+    duration_months: 11,
+    bonus_type: "Percentage",
+    bonus_value: 5,
+    minimum_installment: 1,
+    maximum_installment: 11,
+    status: "Active",
+  });
+
+  const schemeTypeId = schemeType.body?.data?.scheme_type_id ?? schemeType.body?.data?.insertId;
+  const schemeOk = schemeType.status < 400 && Boolean(schemeTypeId);
+
+  line(
+    "POST /gold-schemes/types",
+    schemeOk,
+    schemeOk ? `type ${schemeTypeId}` : JSON.stringify(schemeType.body).slice(0, 80)
+  );
+  if (!schemeOk) failures++;
+
+  if (schemeOk) {
+    const enrollment = await post("/gold-schemes/enrollments", {
+      scheme_type_id: schemeTypeId,
+      customer_id: CUSTOMER_ID,
+      enrollment_date: "2026-01-01",
+    });
+
+    const enrollmentOk = enrollment.status < 400;
+    line(
+      "POST /gold-schemes/enrollments (transaction)",
+      enrollmentOk,
+      enrollmentOk ? "enrolled" : JSON.stringify(enrollment.body).slice(0, 80)
+    );
+    if (!enrollmentOk) failures++;
+  }
+
+  /* ---------------------------------------------------------------- *
    * Clean up
    * ---------------------------------------------------------------- */
   for (const id of created) {

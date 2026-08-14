@@ -40,7 +40,7 @@ It stays on `auth-integration` until feature work resumes.
 | 4 | finance | Riya | ✅ | ✅ | ✅ | **merged — S0-7 and S2-16 resolved, 8 endpoints unblocked** |
 | 5 | reports + analytics + exports + dashboard | Riya | ✅ | ✅ | ✅ | **merged — S2-11 resolved, exports proven to produce real files** |
 | 6 | orders + makers | Riya | ✅ | ✅ | ✅ | **merged — 4 transaction sites pooled via a shared helper** |
-| 7 | schemes | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 7 | schemes | Riya | ✅ | ✅ | ✅ | **merged — last 3 transaction sites pooled** |
 | 8 | security (PIN) | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 9 | masters | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 10 | customers | Purvansh | n/a | ⏳ | ⏳ | not started |
@@ -834,6 +834,70 @@ converted.
 ```
 read  : 47 routes, 44 OK, 3 known-broken, 0 regressions
 write : 8/8 pass
+database left clean
+```
+
+**Verdict: merged.**
+
+---
+
+### 7. Gold scheme — ✅ MERGED · 2026-08-13
+
+**4 files** converted into `src/modules/schemes/`. `scheme.model.js` is the largest file
+in the project at 25KB, holding the last three transaction sites in the codebase:
+`createEnrollment`, `payInstallment` and `processSchemeMaturity`.
+
+All three moved onto `withTransaction` from module 6 — the helper paid for itself
+immediately, replacing three more copies of the same boilerplate with three one-line
+changes.
+
+#### Milestone: every transaction site is now pooled
+
+| Site | Module |
+|---|---|
+| `createBill`, `updateBill` | 1 |
+| `createAdvancePayment` | 2 |
+| order create / cancel / deliver | 6 |
+| `createAssignment` | 6 |
+| `createEnrollment`, `payInstallment`, `processSchemeMaturity` | **7** |
+
+**Ten sites, all on pooled connections.** The temporary single `connection` in `db.cjs`
+now has only the remaining `.cjs` shadow files as consumers — once module 8 clears those,
+it can be deleted and decision 2 (one shared pool) is finally complete.
+
+#### Write coverage
+
+Enrollment is the transaction that fans out across several tables, so it is the meaningful
+one to exercise:
+
+```
+POST /gold-schemes/types                    PASS  type 1
+POST /gold-schemes/enrollments (transaction) PASS  enrolled
+```
+
+**10 write checks now**, up from 3 when the write sweep was introduced.
+
+#### Another test-data lesson
+
+The scheme type first failed with `Data too long for column 'scheme_code'` — my payload
+used a full 13-digit timestamp as the code. Same category as the `order_type` enum
+failure in module 6: **the schema defending itself against bad test data, not a code
+bug.** Both were fixed in the test, not the application.
+
+Worth noting as a pattern — when a write sweep fails, check the payload against the column
+definition before assuming the merge broke something.
+
+#### Cleanup
+
+4 superseded `.cjs` files deleted. Bridge down to **18 `.cjs` files from 83** — 78%
+converted. Everything left belongs to the financial-security module or is a shadow waiting
+on it.
+
+**Sweeps**
+
+```
+read  : 47 routes, 44 OK, 3 known-broken, 0 regressions
+write : 10/10 pass
 database left clean
 ```
 

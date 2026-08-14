@@ -1,5 +1,4 @@
-const goldSchemeService =
-require("../services/goldSchemeService.cjs");
+import goldSchemeService from "./scheme.service.js";
 
 const createSchemeType = async (req, res) => {
 
@@ -444,7 +443,7 @@ const processSchemeMaturity = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createSchemeType,
     getAllSchemeTypes,
@@ -460,4 +459,22 @@ module.exports = {
     getMissedInstallments,
     processSchemeMaturity
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createSchemeType,
+    getAllSchemeTypes,
+    getSchemeTypeById,
+    updateSchemeType,
+    deactivateSchemeType,
+    createEnrollment,
+    getAllEnrollments,
+    getEnrollmentById,
+    payInstallment,
+    getInstallmentHistory,
+    getLedgerHistory,
+    getMissedInstallments,
+    processSchemeMaturity,
 };
