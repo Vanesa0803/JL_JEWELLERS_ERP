@@ -73,11 +73,25 @@ import supplierPaymentRoutes from "./modules/purchase/supplierPayment.routes.js"
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
- * Routes — auth (still in the legacy backend/ folder, one level up)
- * Moves into modules/auth during phase C.
+ * Auth — phase C.
+ *
+ * Taken from auth-integration rather than the version that was running: it is
+ * a strict superset, adding profile, logout, change-password and
+ * reset-password on top of the same correct login. See the scour table in
+ * MERGE_LOG.md.
  * ------------------------------------------------------------------ */
-import authRoutes from "../routes/authRoutes.cjs";
-import employeeRoutes from "../routes/employeeRoutes.cjs";
+import authRoutes from "./modules/auth/auth.routes.js";
+
+/* ------------------------------------------------------------------ *
+ * HR — phase C.
+ *
+ * Salary is deliberately NOT here. Its four handlers return a hardcoded
+ * {success: true} and never touch the database, so merging it would mean
+ * writing it. It stays on auth-integration until feature work resumes.
+ * ------------------------------------------------------------------ */
+import employeeRoutes from "./modules/hr/employee.routes.js";
+import departmentRoutes from "./modules/hr/department.routes.js";
+import attendanceRoutes from "./modules/hr/attendance.routes.js";
 
 const app = express();
 
@@ -112,6 +126,8 @@ const api = express.Router();
 
 api.use("/auth", authRoutes);
 api.use("/employees", employeeRoutes);
+api.use("/departments", departmentRoutes);
+api.use("/attendance", attendanceRoutes);
 
 api.use("/bills", billRoutes);
 api.use("/payments", paymentRoutes);

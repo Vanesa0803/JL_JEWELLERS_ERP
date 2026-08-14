@@ -48,8 +48,8 @@ It stays on `auth-integration` until feature work resumes.
 | 12 | products | Purvansh | n/a | ✅ | ✅ | **merged — cross-module validation working** |
 | 13 | inventory | Purvansh | n/a | ✅ | ✅ | **merged — reported "Pending", was complete** |
 | 14 | purchase | Purvansh | n/a | ✅ | ✅ | **merged — PHASE B COMPLETE** |
-| 15 | auth | auth-integration | ⏳ | ⏳ | ⏳ | not started |
-| 16 | hr (no salary) | auth-integration | ⏳ | ⏳ | ⏳ | not started |
+| 15 | auth | auth-integration | ✅ | ✅ | ✅ | **merged — JWT round trip works end to end** |
+| 16 | hr (no salary) | auth-integration | ✅ | ✅ | ✅ | **merged — S2-1 and S2-2 fixed. MERGE COMPLETE** |
 | — | ~~salary~~ | auth-integration | — | — | — | **deferred — would need writing** |
 
 Purvansh's modules need no conversion; they are already ESM.
@@ -1478,6 +1478,154 @@ stable across back-to-back runs
 | Write paths tested | 0 | **10** |
 | Modules merged | 0 | **14** |
 | Migrations applied | 0 | 6 |
+
+---
+
+## PHASE C — auth and HR
+
+### 15. Auth — ✅ MERGED · 2026-08-13
+
+Taken from `auth-integration`, as the scour determined: a strict superset of the version
+that was running, adding profile, logout, change-password and reset-password on top of the
+same correct login.
+
+**The JWT round trip now works end to end — for the first time.**
+
+```
+POST /auth/login                    200  token issued
+POST /auth/login  wrong password    401  correctly rejected
+GET  /auth/profile  with token      200  authenticated
+GET  /auth/profile  no token        401  correctly refused
+GET  /auth/profile  bad token       401  correctly refused
+POST /auth/logout                   200
+PUT  /auth/change-password          200
+```
+
+That third line is the milestone. The original audit found login signing tokens with the
+literal string `"secret"` while the middleware verified against `process.env.JWT_SECRET`,
+so no issued token could ever be accepted. A protected route has now actually authenticated
+a real token.
+
+Two conversions were needed: `exports.foo = ...` to ESM, and pointing the controller at the
+**promise** pool — it is written with `await db.query(...)`, and the default export is the
+callback pool, whose `.query()` would not have worked with `await`.
+
+#### `S2-20` found — logging out does not actually log you out
+
+`POST /auth/logout` failed on a missing `blacklisted_tokens` table. Migration
+`2026-08-13_07` creates it, and logout now succeeds.
+
+But testing the obvious next thing showed the feature is still incomplete:
+
+```
+POST /auth/logout                     200
+GET  /auth/profile  with same token   200   <- still works
+```
+
+A JWT stays valid until it expires. `middleware/auth.js` checks the signature and expiry
+but never consults the blacklist, so logging out only clears the client's copy — anyone
+holding the token keeps access for up to a day. The table now exists and revocations are
+being recorded, so the middleware check can be added later without a gap in the data.
+
+Logged as `S2-20` rather than fixed: it is a code change to the auth middleware, which
+belongs with the auth work rather than a merge.
+
+---
+
+### 16. HR — ✅ MERGED · 2026-08-13 · **MERGE COMPLETE**
+
+Employees, departments and attendance. **Salary excluded** — its four handlers return a
+hardcoded `{success: true}` and never touch the database, so merging it would mean writing
+it.
+
+#### `S2-1` fixed — attendance had never executed
+
+The controller queried a table called `attendance`. The real one is `employee_attendance`.
+Three references corrected, and verified by doing it:
+
+```
+POST /attendance/check-in    200
+POST /attendance/check-out   200
+
+employee_attendance:
+attendance_id  employee_id  date        check_in  check_out
+1              1            2026-08-14  16:15:54  16:15:54
+```
+
+**This module was reported ✅ Completed in the original status report and had never run
+once.** It now writes real timestamps.
+
+#### `S2-2` fixed — employees and departments properly linked
+
+Both employee controllers were broken in different ways: the one that was running inserts a
+`role` column that does not exist, and `auth-integration`'s (fuller, 5 CRUD functions) joins
+on `department_id`, which also did not exist.
+
+Took the fuller one and fixed the schema instead, because the data showed what was intended:
+
+```
+employees.department   departments.department_name
+Sales                  Sales
+Accounts               Accounts
+Inventory              Inventory
+```
+
+A `departments` table already existed and the values matched exactly — the normalised
+design was intended and never finished. Migration `2026-08-13_08` adds `department_id` with
+a foreign key and backfills it by matching the text. **All 5 rows matched; none was left
+NULL.** The old text column is kept rather than dropped, since existing queries do
+`SELECT *`.
+
+```
+GET  /employees   200  5 rows (join now works)
+POST /employees   201  created with department_id
+GET  /departments 200
+```
+
+That is the fifth time the schema turned out to be ahead of the code.
+
+#### The legacy `backend/` folder is gone
+
+With auth and HR moved into modules, nothing referenced it. Deleted `backend/config/`,
+`backend/controllers/`, `backend/middleware/` and `backend/routes/` — including the **third
+database pool**, which had been opening a separate connection since phase 0.
+
+`backend/` is now just `src/` and its config files. Startup prints **one** database
+connection message, not two.
+
+#### One inconsistency worth naming
+
+`GET /departments` is the **only route in the entire API that requires a token**. Every
+other one — bills, payments, customer records, stock — is open. It is not in the sweep for
+that reason.
+
+That single guarded route is a good argument for `S1-3`: authentication was clearly
+intended, applied once, and never rolled out.
+
+---
+
+## MERGE COMPLETE — all 16 modules
+
+```
+read  : 91 routes, 91 OK, 0 failing, 0 regressions
+write : 10 checks, 10 pass
+stable across back-to-back runs
+```
+
+| | Session start | Now |
+|---|:--:|:--:|
+| Endpoints answering | 8 | **91** |
+| Known-broken endpoints | 7 | **0** |
+| Write paths tested | 0 | **10** |
+| Express apps | 2 | **1** |
+| Database pools | 3 | **1** |
+| `.cjs` bridge files | 83 → | **0** |
+| Branches with stranded work | 3 | **0** |
+| Migrations applied | — | **8** |
+
+**Deferred, with reasons recorded:** the salary module (stubs, needs writing) and
+`customerLedger` / `supplierLedger` from `developer-purvansh` (superseded by Riya's, which
+covers all six ledger types).
 
 ---
 

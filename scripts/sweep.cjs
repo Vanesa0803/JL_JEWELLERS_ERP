@@ -13,7 +13,12 @@ const BASELINE = {
   "GET /customer-orders": 200,
   "GET /makers": 200,
   "GET /gold-schemes/types": 200,
+  // HR — phase C. /departments is deliberately absent: it is the ONE route in
+  // the whole API that requires a token, so an unauthenticated sweep gets 401.
+  // That inconsistency is itself the point of S1-3 — every other route here is
+  // wide open.
   "GET /employees": 200,
+  "GET /attendance": 200,
   // Unblocked by migrations 2026-08-13_02 (cash_ledger) and _03 (income /
   // expenses). All were failing before the finance module was merged.
   "GET /dashboard": 200,
