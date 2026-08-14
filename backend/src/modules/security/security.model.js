@@ -1,4 +1,4 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 const createFinancialPin = (pinHash) => {
 
@@ -7,7 +7,7 @@ const createFinancialPin = (pinHash) => {
         db.query(
 
             `
-            INSERT INTO financial_security
+            INSERT INTO financial_pin
             (
                 pin_hash
             )
@@ -44,7 +44,8 @@ const getFinancialSecurity = () => {
 
             `
             SELECT *
-            FROM financial_security
+            FROM financial_pin
+            ORDER BY pin_id
             LIMIT 1
             `,
 
@@ -73,13 +74,13 @@ const updateFinancialPin = (pinHash) => {
         db.query(
 
             `
-            UPDATE financial_security
+            UPDATE financial_pin
 
             SET
 
                 pin_hash = ?
 
-            WHERE security_id = 1
+            WHERE pin_id = (SELECT pin_id FROM (SELECT MIN(pin_id) AS pin_id FROM financial_pin) AS current_pin)
             `,
 
             [pinHash],
@@ -112,7 +113,12 @@ const updateSecuritySettings = (
         db.query(
 
             `
-            UPDATE financial_security
+            -- These are business settings, not properties of a PIN, so they
+            -- live in financial_settings, which already had
+            -- max_discount_percent. Only max_rate_change_percent had to be
+            -- added (migration 2026-08-13_04). The original code wrote both to
+            -- a financial_security table that never existed (S0-8).
+            UPDATE financial_settings
 
             SET
 
@@ -120,7 +126,7 @@ const updateSecuritySettings = (
 
                 max_rate_change_percent = ?
 
-            WHERE security_id = 1
+            WHERE setting_id = 1
             `,
 
             [
@@ -149,7 +155,7 @@ const updateSecuritySettings = (
 
 };
 
-module.exports = {
+export {
 
     createFinancialPin,
 
@@ -159,4 +165,13 @@ module.exports = {
 
     updateSecuritySettings
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createFinancialPin,
+    getFinancialSecurity,
+    updateFinancialPin,
+    updateSecuritySettings,
 };

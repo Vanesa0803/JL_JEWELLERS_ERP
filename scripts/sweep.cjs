@@ -40,7 +40,10 @@ const BASELINE = {
   "GET /export/pdf?report=sales": 200,
   "GET /export/excel?report=sales": 200,
 
-  "GET /financial-security/": "FAIL financial_security",
+  // Unblocked by module 8. The code queried a `financial_security` table that
+  // never existed; the real one is `financial_pin`, and the security settings
+  // moved to `financial_settings`, which already had max_discount_percent.
+  "GET /financial-security/": 200,
 
   // Fixed when the payments module was merged — S2-15. Now expected to pass,
   // so a future change that reintroduces the bug shows up as a regression.

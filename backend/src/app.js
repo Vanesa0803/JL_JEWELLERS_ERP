@@ -1,16 +1,12 @@
 /**
  * The single Express application.
  *
- * MID-MERGE STATE — read this before being confused by the .cjs imports.
+ * Every business module below is ESM and lives under src/modules/. The
+ * CommonJS bridge that carried the codebase through the merge is gone — see
+ * MERGE_LOG.md for how it worked and why it is no longer needed.
  *
- * The backend is being consolidated from three separate codebases into one
- * module structure (see MERGE_PLAN.md and MERGE_LOG.md). The finance modules
- * are still CommonJS and are bridged in as `.cjs` files; they get converted to
- * ESM one module at a time, each verified against a known baseline before the
- * next one starts. When the last `.cjs` disappears, so does this comment.
- *
- * Node can import CommonJS from ESM, which is what makes the incremental
- * conversion possible without the app ever being broken.
+ * The only exception is auth/employees, which still sit in the legacy
+ * backend/ folder one level up. They move into modules/auth in phase C.
  */
 
 import express from "express";
@@ -22,9 +18,8 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { ApiResponse } from "./utils/ApiResponse.js";
 
 /* ------------------------------------------------------------------ *
- * Routes — finance side (bridged CommonJS, awaiting conversion)
+ * Business modules
  * ------------------------------------------------------------------ */
-// Converted modules (ESM, under modules/)
 import billRoutes from "./modules/billing/bill.routes.js";
 import paymentRoutes from "./modules/payments/payment.routes.js";
 import ledgerRoutes from "./modules/ledger/ledger.routes.js";
@@ -40,10 +35,9 @@ import customerOrderRoutes from "./modules/orders/order.routes.js";
 import makerRoutes from "./modules/makers/maker.routes.js";
 import makerAssignmentRoutes from "./modules/makers/assignment.routes.js";
 import goldSchemeRoutes from "./modules/schemes/scheme.routes.js";
+import financialSecurityRoutes from "./modules/security/security.routes.js";
 
-// Still bridged as CommonJS, awaiting their turn
-import financialSecurityRoutes from "./routes/financialSecurityRoutes.cjs";
-import limiter from "./middleware/rateLimiter.cjs";
+import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
  * Routes — auth (still in the legacy backend/ folder, one level up)

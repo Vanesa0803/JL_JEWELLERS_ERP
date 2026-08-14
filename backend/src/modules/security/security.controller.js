@@ -1,5 +1,4 @@
-const financialSecurityService =
-require("../services/financialSecurityService.cjs");
+import financialSecurityService from "./security.service.js";
 
 const createFinancialPin = async (req, res) => {
 
@@ -184,7 +183,7 @@ const updateSecuritySettings = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createFinancialPin,
 
@@ -196,4 +195,14 @@ module.exports = {
 
     updateSecuritySettings
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createFinancialPin,
+    verifyFinancialPin,
+    changeFinancialPin,
+    getFinancialSecurity,
+    updateSecuritySettings,
 };

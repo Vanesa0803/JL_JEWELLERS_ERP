@@ -1,7 +1,6 @@
-const bcrypt = require("bcrypt");
+import bcrypt from "bcrypt";
 
-const financialSecurityModel =
-require("../models/financialSecurityModel.cjs");
+import financialSecurityModel from "./security.model.js";
 
 const SALT_ROUNDS = 10;
 
@@ -101,7 +100,7 @@ const updateSecuritySettings = async (
 
 };
 
-module.exports = {
+export {
 
     createFinancialPin,
 
@@ -113,4 +112,14 @@ module.exports = {
 
     updateSecuritySettings
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createFinancialPin,
+    verifyFinancialPin,
+    changeFinancialPin,
+    getFinancialSecurity,
+    updateSecuritySettings,
 };

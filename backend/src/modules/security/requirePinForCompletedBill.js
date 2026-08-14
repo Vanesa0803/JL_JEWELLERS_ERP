@@ -1,8 +1,6 @@
-const billingService =
-require("../services/billingService.cjs");
+import billingService from "../billing/bill.service.js";
 
-const financialSecurityService =
-require("../services/financialSecurityService.cjs");
+import financialSecurityService from "./security.service.js";
 
 
 const requireFinancialPinForCompletedBill = async (
@@ -95,5 +93,4 @@ const requireFinancialPinForCompletedBill = async (
 };
 
 
-module.exports =
-    requireFinancialPinForCompletedBill;
+export default requireFinancialPinForCompletedBill;

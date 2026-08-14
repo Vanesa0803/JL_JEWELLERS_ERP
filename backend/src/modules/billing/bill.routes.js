@@ -1,9 +1,9 @@
 import express from "express";
 const router = express.Router();
 
-import verifyFinancialPin from "../../middleware/verifyFinancialPin.cjs";
+import verifyFinancialPin from "../security/verifyFinancialPin.js";
 import billController from "./bill.controller.js";
-import requireFinancialPinForCompletedBill from "../../middleware/requireFinancialPinForCompletedBill.cjs";
+import requireFinancialPinForCompletedBill from "../security/requirePinForCompletedBill.js";
 
 router.get("/", billController.getAllBills);
 

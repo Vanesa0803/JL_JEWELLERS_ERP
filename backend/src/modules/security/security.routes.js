@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const financialSecurityController =
-require("../controllers/financialSecurityController.cjs");
+import financialSecurityController from "./security.controller.js";
 
 // Create Financial PIN
 router.post(
@@ -35,4 +34,4 @@ router.patch(
     financialSecurityController.updateSecuritySettings
 );
 
-module.exports = router;
+export default router;

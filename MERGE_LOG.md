@@ -41,7 +41,7 @@ It stays on `auth-integration` until feature work resumes.
 | 5 | reports + analytics + exports + dashboard | Riya | ✅ | ✅ | ✅ | **merged — S2-11 resolved, exports proven to produce real files** |
 | 6 | orders + makers | Riya | ✅ | ✅ | ✅ | **merged — 4 transaction sites pooled via a shared helper** |
 | 7 | schemes | Riya | ✅ | ✅ | ✅ | **merged — last 3 transaction sites pooled** |
-| 8 | security (PIN) | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 8 | security (PIN) | Riya | ✅ | ✅ | ✅ | **merged — S0-8 resolved. PHASE A COMPLETE** |
 | 9 | masters | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 10 | customers | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 11 | suppliers | Purvansh | n/a | ⏳ | ⏳ | not started |
@@ -902,6 +902,98 @@ database left clean
 ```
 
 **Verdict: merged.**
+
+---
+
+### 8. Financial security — ✅ MERGED · 2026-08-13 · **PHASE A COMPLETE**
+
+**6 files** converted into `src/modules/security/`, including the two PIN middlewares that
+guard bill cancel and edit.
+
+#### `S0-8` resolved — and the schema already knew better than the code
+
+Unlike the cash book, most of this was a genuine rename: `financial_security` →
+`financial_pin`, `security_id` → `pin_id`. But `updateSecuritySettings` also wrote
+`max_discount_percent` and `max_rate_change_percent`, which do not belong on a PIN record —
+a PIN row holds a hash; a discount ceiling is a business rule.
+
+**The schema already had the right home.** `financial_settings` existed, unused, with
+`max_discount_percent` already present alongside `default_gst_metal`,
+`default_gst_making`, `default_making_charge` and `invoice_prefix`. The code simply did not
+know about it.
+
+So the settings writes were repointed there and migration `2026-08-13_04` added only the
+one genuinely missing column, plus the singleton settings row the code's
+`WHERE setting_id = 1` needs to have something to update. Its GST defaults (3% metal, 5%
+making) deliberately match the values currently hardcoded in the billing calculator, so
+`S1-9` can later read them from here instead.
+
+That is the third time the merge has found the schema better designed than the code that
+used it — after the ledger and the income/expense pair.
+
+#### Verified end to end, not just by status code
+
+```
+GET   /financial-security/          200
+POST  /set-pin                      201  PIN created
+POST  /verify-pin  (correct PIN)    200  verified
+POST  /verify-pin  (wrong PIN)      400  correctly rejected
+PATCH /settings                     200  updated
+```
+
+Confirmed in the database afterwards: the PIN is stored as a 60-character bcrypt hash
+(`$2b$10$…`, never plaintext), and the settings persisted exactly as sent (15 / 7).
+
+**Rejecting the wrong PIN is the test that matters.** An endpoint that returns 200 for a
+correct PIN proves nothing on its own — it has to say no to a bad one.
+
+---
+
+## PHASE A COMPLETE — the CommonJS bridge is gone
+
+**All 83 bridged `.cjs` files are converted or deleted. Zero remain.**
+
+| Removed at the end | Why it could go |
+|---|---|
+| 16 orphaned `.cjs` | A closed loop unreachable from `app.js` once security converted |
+| `rateLimiter.cjs` | Converted to ESM |
+| `db.cjs` | Its whole reason to exist was that CommonJS cannot `require()` ESM |
+| the second DB connection | All ten transaction sites now use `withTransaction` |
+
+`config/db.js` is now a single file with **one pool**, exposed through both a promise and a
+callback API. **Decision 2 of the merge plan is complete.**
+
+Also deleted: `customerModel.cjs` (Riya's), superseded by the decision to take Purvansh's
+customer module in phase B; and four 0-byte files that had sat inside features marked
+complete in the original status report — `financialPin`, `validate`, `gstCalculator`,
+`invoiceGenerator`.
+
+### Phase A final state
+
+```
+read  : 47 routes, 47 OK, 0 failing, 0 regressions
+write : 10/10 pass
+```
+
+**Every endpoint in the sweep passes.** For comparison, the first measured baseline on
+2026-08-13 was 8 working and 7 failing.
+
+| | Start | Now |
+|---|:--:|:--:|
+| Endpoints answering | 8 | **47** |
+| Known-broken endpoints | 7 | **0** |
+| Write paths tested | 0 | **10** |
+| `.cjs` bridge files | 83 | **0** |
+| Express apps | 2 | 1 |
+| DB connections | 3 | **1 pool** |
+
+Backlog items closed along the way: `S0-7`, `S0-8`, `S2-11`, `S2-15`, `S2-16`, plus the two
+billing transaction bugs and half of `S2-18`.
+
+Still open and deliberately not touched: `S1-3` (route-level auth), the structural half of
+`S2-18`, `S1-8` (GST-compliant invoice numbering), `S1-9` (GST rates from the table).
+
+**Next: Phase B** — Purvansh's 100 stranded inventory files, which have never run.
 
 ---
 

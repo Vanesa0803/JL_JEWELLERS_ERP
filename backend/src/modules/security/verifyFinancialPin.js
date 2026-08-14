@@ -1,5 +1,4 @@
-const financialSecurityService =
-require("../services/financialSecurityService.cjs");
+import financialSecurityService from "./security.service.js";
 
 const verifyFinancialPin = async (req, res, next) => {
 
@@ -43,4 +42,4 @@ const verifyFinancialPin = async (req, res, next) => {
 
 };
 
-module.exports = verifyFinancialPin;
+export default verifyFinancialPin;
