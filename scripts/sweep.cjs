@@ -33,7 +33,14 @@ const BASELINE = {
   "GET /reports/gst": 200,
   "GET /reports/customers": 200,
   "GET /reports/payments": 200,
+  // Ledger — all six types come from Riya's implementation, which uses the real
+  // customer_ledger / supplier_ledger tables (module 3).
   "GET /ledger/1": 200,
+  "GET /ledger/3": 200,
+  "GET /ledger/3/statement": 200,
+  "GET /ledger/3/outstanding": 200,
+  "GET /ledger/supplier/1": 200,
+  "GET /ledger/supplier/1/outstanding": 200,
   "GET /maker-assignments": 200,
   "GET /analytics/profit-trends": 200,
   "GET /expenses/history": 200,

@@ -1,6 +1,6 @@
 import { calculateBillItem } from "./billing.calculator.js";
 import billModel from "./bill.model.js";
-import ledgerService from "../../services/ledgerService.cjs";
+import ledgerService from "../ledger/ledger.service.js";
 
 /**
  * Get All Bills

@@ -36,7 +36,7 @@ It stays on `auth-integration` until feature work resumes.
 | 0 | Foundation | shared | ✅ | ✅ | ✅ | **merged — 0 regressions** |
 | 1 | billing | Riya | ✅ | ✅ | ✅ | **merged — 2 real bugs fixed** |
 | 2 | payments | Riya | ✅ | ✅ | ✅ | **merged — S2-15 fixed; advances blocked on a schema decision** |
-| 3 | ledger | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 3 | ledger | **Riya** (over Purvansh) | ✅ | ✅ | ✅ | **merged — duplicate resolved on evidence** |
 | 4 | finance | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 5 | reports + analytics | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 6 | orders + makers | Riya | ⏳ | ⏳ | ⏳ | not started |
@@ -496,6 +496,80 @@ Checked against the live database:
 
 Only `transaction_type` and `amount` overlap. A find-and-replace would fail on the first
 insert. Backlog updated from "rename, S effort" to "needs a decision, M effort".
+
+---
+
+### 3. Ledger — ✅ MERGED · 2026-08-13
+
+**The duplicate, settled on evidence.** Two implementations existed. The choice was not
+close, and the deciding evidence came from Purvansh's own code comments:
+
+```js
+// Since there is no dedicated customer_ledger or customer_payments table yet,
+// we derive the outstanding balance from the customer_orders table.
+
+// Without a payments/ledger table, we can only list the orders as debit
+// transactions. Once the finance module is complete, this query should UNION
+// with customer_payments.
+```
+
+**`customer_ledger` does exist**, and Riya's module was already writing to it. Purvansh
+wrote a documented stopgap against `customer_orders` for a table that was already there,
+because the branches never met.
+
+| | Riya | Purvansh |
+|---|---|---|
+| Source tables | `customer_ledger`, `supplier_ledger` — the real ones | `customer_orders` only |
+| Coverage | 7 functions: create/read/statement/outstanding for both customer and supplier | 2 read-only functions |
+| Completeness | Full | Author-flagged as temporary |
+
+**Taken: Riya's.** Purvansh's is superseded — and its own author expected it to be.
+
+This is the clearest single illustration of what the merge is worth. Two people solved the
+same problem twice, one of them worked around a table his teammate was already using, and
+neither knew.
+
+**Files** — 4 converted to ESM under `src/modules/ledger/`: `ledger.routes.js`,
+`ledger.controller.js`, `ledger.service.js`, `ledger.model.js`.
+
+**Repointed** — `bill.service.js` and `payment.service.js` now import
+`../ledger/ledger.service.js` instead of the bridged `.cjs`.
+
+**Endpoints** — all five verified live:
+
+```
+GET /ledger/:customer_id                200
+GET /ledger/:customer_id/statement      200
+GET /ledger/:customer_id/outstanding    200
+GET /ledger/supplier/:id                200
+GET /ledger/supplier/:id/outstanding    200
+```
+
+Added to the sweep baseline so a regression would be caught.
+
+**Write path confirmed indirectly** — creating a bill writes a `customer_ledger` row, which
+is how the test residue below was noticed. The ledger is genuinely wired into billing, not
+just readable.
+
+**Cleanup** — `ledgerController.cjs` and `ledgerRoutes.cjs` deleted. `ledgerService.cjs`
+and `ledgerModel.cjs` kept: the deprecated `billingService.cjs` shadow still requires them.
+That shadow chain now unwinds entirely when the security module converts.
+
+**Test residue found and dealt with.** Each write-sweep run left behind soft-deleted bills
+plus their `bill_items` and `customer_ledger` rows — none of which have delete endpoints.
+Nine ledger rows had accumulated. Purged, and the sweep script now documents the residue
+and carries the SQL to clear it. Soft-delete is correct for financial records; the point
+is that test runs must not quietly pollute the data they are measuring.
+
+**Sweeps**
+
+```
+read  : 33 routes, 25 OK, 8 known-broken, 0 regressions
+write : 5/5 pass
+database left clean: 15 bills, 19 bill_items, 30 ledger rows, 15 payments
+```
+
+**Verdict: merged.**
 
 ---
 

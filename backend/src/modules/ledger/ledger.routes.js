@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const ledgerController =
-    require("../controllers/ledgerController.cjs");
+import ledgerController from "./ledger.controller.js";
 
 
 // ===============================
@@ -51,4 +50,4 @@ router.get(
 );
 
 
-module.exports = router;
+export default router;

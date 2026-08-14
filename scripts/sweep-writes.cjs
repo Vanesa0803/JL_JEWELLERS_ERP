@@ -6,8 +6,24 @@
  * lives behind a POST or PUT, so a GET-only sweep reported the system healthy
  * while bill creation was broken.
  *
- * This exercises the write paths, then cleans up after itself so the database
- * is left exactly as it was found.
+ * This exercises the write paths, then cleans up as far as the API allows.
+ *
+ * CLEANUP IS INCOMPLETE, ON PURPOSE
+ * ---------------------------------
+ * The sweep can only use endpoints that exist. `DELETE /bills/:id` is a SOFT
+ * delete, and creating a bill also writes bill_items and a customer_ledger row,
+ * neither of which has a delete endpoint. So every run leaves residue behind.
+ *
+ * That is correct behaviour for an accounting system — you do not hard-delete
+ * financial records — but it means test rows accumulate. Purge them with:
+ *
+ *   DELETE FROM bill_items     WHERE bill_id IN (SELECT bill_id FROM bills WHERE deleted_at IS NOT NULL);
+ *   DELETE FROM customer_ledger WHERE bill_id IN (SELECT bill_id FROM bills WHERE deleted_at IS NOT NULL);
+ *   DELETE FROM bills          WHERE deleted_at IS NOT NULL;
+ *   DELETE FROM payment_details WHERE payment_id IN (SELECT payment_id FROM payments WHERE payment_type='Advance');
+ *   DELETE FROM payments       WHERE payment_type='Advance';
+ *
+ * Run this against a development database only.
  *
  * Usage: node scripts/sweep-writes.cjs [baseUrl]
  */

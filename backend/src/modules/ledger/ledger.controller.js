@@ -1,4 +1,4 @@
-const ledgerService = require("../services/ledgerService.cjs");
+import ledgerService from "./ledger.service.js";
 
 const createLedgerEntry = async (req, res) => {
 
@@ -231,7 +231,7 @@ const getSupplierOutstandingBalance = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createLedgerEntry,
     getCustomerLedger,
@@ -241,4 +241,16 @@ module.exports = {
     getSupplierLedger,
     getSupplierOutstandingBalance
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createLedgerEntry,
+    getCustomerLedger,
+    getLedgerStatement,
+    getOutstandingBalance,
+    createSupplierLedgerEntry,
+    getSupplierLedger,
+    getSupplierOutstandingBalance,
 };
