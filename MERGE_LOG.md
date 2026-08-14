@@ -421,6 +421,63 @@ write : 3/3 pass
 
 **Verdict: merged**, with the advance feature explicitly blocked rather than quietly broken.
 
+#### Follow-up · advance payments unblocked · migration `2026-08-13_01`
+
+Approved and applied. Two columns added to `payments`:
+
+| Column | Definition |
+|---|---|
+| `customer_id` | `INT NULL`, FK to `customers` — set only for advances |
+| `is_adjusted` | `TINYINT(1) NOT NULL DEFAULT 0` — marks an advance as consumed |
+
+Plus index `idx_payments_customer_advance (customer_id, payment_type, is_adjusted)`.
+
+**This completed an intended design rather than inventing one.** `payments.bill_id` was
+already nullable and `payment_type` already contained `'Advance'` as an enum value — both
+only make sense if a payment can exist without a bill. The columns were simply never added.
+
+Additive only, no rows rewritten, and the migration is guarded so re-running is harmless.
+`database/03_developer1_finance.sql` and `05_foreign_keys.sql` updated so the schema files
+stay the source of truth.
+
+**Verified by round trip, not just a status code.** A 200 on the read proves nothing — an
+empty list is also a 200. The write sweep now creates a real advance and reads it back,
+asserting the count actually increased (`1 -> 2`). Test rows were removed afterwards.
+
+#### `S2-18` found while testing — advances are not transactional
+
+The first attempt used `payment_method: "Cash"`, which failed at the cash-book step. On
+inspecting the database:
+
+```
+payment_id 16 | customer_id 3 | 5000.00 | Advance   <- written
+payment_detail_id 15 | Cash                          <- written
+```
+
+**The API returned an error to the caller, and both rows were committed anyway.** There is
+no transaction around advance creation, so the payment succeeded, the cash-book write
+failed, and nothing rolled back. The customer's money is recorded while the app reports
+failure.
+
+Same family as the billing bug fixed in module 1 — and it makes the case that write-path
+testing should have existed from the start. Logged as `S2-18`, to be fixed together with
+`S0-7` since they are coupled.
+
+The advance write test uses `Card` for now to isolate the feature from the cash-book
+blocker, with a comment to switch it back to `Cash` once that is resolved.
+
+#### `S0-7` reclassified — the cash book is not a rename
+
+Checked against the live database:
+
+| | Columns |
+|---|---|
+| Real `cash_ledger` | `cash_entry_id, transaction_date, transaction_type, amount, description, created_at` |
+| Code writes to `cash_book` | `transaction_type, source, reference_id, customer_id, amount, remarks, created_by` |
+
+Only `transaction_type` and `amount` overlap. A find-and-replace would fail on the first
+insert. Backlog updated from "rename, S effort" to "needs a decision, M effort".
+
 ---
 
 ### 0. Foundation — superseded detail

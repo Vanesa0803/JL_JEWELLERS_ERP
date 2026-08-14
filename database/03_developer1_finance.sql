@@ -509,10 +509,17 @@ DROP TABLE IF EXISTS `payments`;
 CREATE TABLE `payments` (
   `payment_id` int NOT NULL AUTO_INCREMENT,
   `bill_id` int DEFAULT NULL,
+  -- Set only for advance payments, which are taken from a customer BEFORE any
+  -- bill exists. NULL for ordinary bill payments, where the bill knows the
+  -- customer. Added by migration 2026-08-13_01.
+  `customer_id` int DEFAULT NULL,
   `payment_date` datetime DEFAULT CURRENT_TIMESTAMP,
   `total_amount` decimal(18,2) DEFAULT NULL,
   `payment_status` enum('Pending','Partial','Completed') DEFAULT 'Pending',
   `payment_type` enum('Bill Payment','Advance','Refund','Gold Scheme') DEFAULT 'Bill Payment',
+  -- Marks an advance as consumed once applied to a bill, so the same advance
+  -- cannot be spent twice. Added by migration 2026-08-13_01.
+  `is_adjusted` tinyint(1) NOT NULL DEFAULT '0',
   `created_by` int DEFAULT NULL,
   `updated_by` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -521,6 +528,7 @@ CREATE TABLE `payments` (
   KEY `idx_bill_id` (`bill_id`),
   KEY `idx_payment_date` (`payment_date`),
   KEY `idx_payment_status` (`payment_status`),
+  KEY `idx_payments_customer_advance` (`customer_id`,`payment_type`,`is_adjusted`),
   CONSTRAINT `chk_payment_amount` CHECK ((`total_amount` >= 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

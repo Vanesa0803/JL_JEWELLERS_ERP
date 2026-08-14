@@ -50,6 +50,13 @@ REFERENCES bills(bill_id)
 ON DELETE CASCADE
 ON UPDATE CASCADE;
 
+-- Advance payments hang off a customer instead of a bill.
+-- Added by migration 2026-08-13_01.
+ALTER TABLE payments
+ADD CONSTRAINT fk_payments_customer
+FOREIGN KEY (customer_id)
+REFERENCES customers(customer_id);
+
 -- =====================================================
 -- PAYMENT DETAILS
 -- =====================================================

@@ -27,9 +27,9 @@ const BASELINE = {
   "GET /payments/refund-history": 200,
   "GET /payments/receipt/1": 200,
 
-  // Still failing: the advance-payment feature needs payments.customer_id and
-  // payments.is_adjusted, which do not exist in the schema. Pending a decision.
-  "GET /payments/advance/1": "FAIL needs payments.customer_id",
+  // Unblocked by migration 2026-08-13_01, which added payments.customer_id
+  // and payments.is_adjusted.
+  "GET /payments/advance/1": 200,
   "GET /reports/gst": 200,
   "GET /reports/customers": 200,
   "GET /reports/payments": 200,

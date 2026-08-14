@@ -55,7 +55,7 @@ Combined effort: ~4 days. This is the single highest-leverage work in the projec
 | **S0-4** | Fix the JWT signing secret | SEC | XS | `authController.js:29` signs with literal `"secret"`; middleware verifies `process.env.JWT_SECRET` | All authenticated routes |
 | **S0-5** | Fix the JWT payload key (`user.id` → `user.user_id`) | BE-HR | XS | `users` PK is `user_id`; token payload is `{id: undefined}` | Any user-scoped logic |
 | **S0-6** | Fix the unresolvable import in `CreateBill.jsx` | FE | XS | Line 12: `"../api/axios"` → resolves to `src/pages/api/axios` | Vite build |
-| **S0-7** | Rename table `cash_book` → `cash_ledger` (9 queries) | BE-FIN | S | `cashBookModel.js`, `financeModel.js`, `dashboardModel.js` | Dashboard summary, Cash Book, Cash Flow |
+| **S0-7** | ~~Rename table `cash_book` → `cash_ledger`~~ **NOT A RENAME — needs a decision** | BE-FIN | **M** | **Verified 2026-08-13 against the live database.** `cash_ledger` has `cash_entry_id, transaction_date, transaction_type, amount, description, created_at`. The code writes `transaction_type, source, reference_id, customer_id, amount, remarks, created_by`. **Only `transaction_type` and `amount` overlap** — 5 columns are missing and `description`/`remarks` differ in name | Dashboard summary, Cash Book, Cash Flow, Balance Sheet, and Cash advances. A find-and-replace here would fail immediately. Three options: extend `cash_ledger` to the richer shape the code expects (recommended, mirrors migration 2026-08-13_01), create `cash_book` as its own table, or simplify the code and lose `source`/`reference_id`/`customer_id`/`created_by` |
 | **S0-8** | Rename table `financial_security` → `financial_pin` (4 queries) | BE-FIN | XS | `financialSecurityModel.js` | Entire PIN module + bill cancel/edit |
 
 **Definition of done for S0:** `npm run dev` in both folders, log in through the UI,
@@ -106,6 +106,7 @@ Combined effort: ~16 days.*
 | **S2-15** | Payments queries `p.customer_id`, which does not exist | BE-FIN | S | **Measured 2026-08-13:** `GET /api/payments/history` → `Unknown column 'p.customer_id'`. Real columns: `payment_id, bill_id, payment_date, total_amount, payment_status, payment_type, created_by, updated_by, created_at, updated_at` | Payment history and receipts fail. Must join via `bills` to reach the customer |
 | **S2-16** | Income sorts by `income_date`, which does not exist | BE-FIN | XS | **Measured:** `GET /api/income/history` → `Unknown column 'income_date' in 'order clause'`. Real date column is `received_date` | Income history fails |
 | **S2-17** | `createEmployee` inserts a `role` column that does not exist | BE-HR | XS | `employees` has `designation`, not `role`. Reading works; creating fails | Employee creation fails |
+| **S2-18** | `createAdvancePayment` is not transactional — a failure mid-way leaves the money recorded while the caller is told it failed | BE-FIN | S | **Observed 2026-08-13:** a Cash advance returned an error to the client, but `payments` **and** `payment_details` rows were both written and left behind. The payment succeeded; the cash-book step after it failed; nothing rolled back | Customer's money recorded, app reports failure. Same family as the billing bug fixed in module 1. Fix alongside `S0-7`, which the two are coupled through |
 
 ---
 

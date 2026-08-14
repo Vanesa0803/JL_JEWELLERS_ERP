@@ -47,6 +47,7 @@ const line = (label, ok, detail) =>
 (async () => {
   let failures = 0;
   const created = [];
+  const advancePaymentIds = [];
 
   console.log("");
   console.log("WRITE-PATH SWEEP");
@@ -130,6 +131,54 @@ const line = (label, ok, detail) =>
   }
 
   /* ---------------------------------------------------------------- *
+   * Advance payments — the feature unblocked by migration
+   * 2026-08-13_01, which added payments.customer_id and
+   * payments.is_adjusted. A 200 on the read alone proves nothing (an
+   * empty list is also a 200), so this creates a real advance and reads
+   * it back.
+   * ---------------------------------------------------------------- */
+  const CUSTOMER_ID = 3;
+
+  const before = await get(`/payments/advance/${CUSTOMER_ID}`);
+  const beforeCount = Array.isArray(before.body?.data) ? before.body.data.length : -1;
+
+  // Card, not Cash, on purpose. A Cash advance also writes to the cash book,
+  // which still targets the non-existent `cash_book` table (S0-7). Using Card
+  // isolates the advance feature from that unrelated blocker. Switch this to
+  // "Cash" once the cash book is resolved — it is the more common real-world
+  // path and deserves the coverage.
+  const advance = await post("/payments/advance", {
+    customer_id: CUSTOMER_ID,
+    amount: 5000,
+    payment_method: "Card",
+    reference_number: "SWEEP-TEST",
+    created_by: 1,
+  });
+
+  const advanceOk = advance.status < 400;
+  line(
+    "POST /payments/advance",
+    advanceOk,
+    advanceOk ? "created" : JSON.stringify(advance.body).slice(0, 80)
+  );
+  if (!advanceOk) failures++;
+
+  if (advanceOk) {
+    const after = await get(`/payments/advance/${CUSTOMER_ID}`);
+    const afterCount = Array.isArray(after.body?.data) ? after.body.data.length : -1;
+    const readBackOk = after.status === 200 && afterCount === beforeCount + 1;
+
+    line(
+      "  -> advance readable for the customer",
+      readBackOk,
+      readBackOk ? `${beforeCount} -> ${afterCount}` : `count ${beforeCount} -> ${afterCount}`
+    );
+    if (!readBackOk) failures++;
+
+    advancePaymentIds.push(advance.body?.data?.payment_id ?? advance.body?.payment_id);
+  }
+
+  /* ---------------------------------------------------------------- *
    * Clean up
    * ---------------------------------------------------------------- */
   for (const id of created) {
@@ -140,6 +189,15 @@ const line = (label, ok, detail) =>
     }).catch(() => {});
   }
   if (created.length) console.log(`\ncleanup: soft-deleted test bill(s) ${created.join(", ")}`);
+
+  // Advances have no delete endpoint, so the test rows are left behind and
+  // reported rather than silently accumulating. Remove with:
+  //   DELETE FROM payment_details WHERE payment_id IN (...);
+  //   DELETE FROM payments WHERE payment_id IN (...);
+  const advanceIds = advancePaymentIds.filter(Boolean);
+  if (advanceIds.length) {
+    console.log(`cleanup: advance payment(s) ${advanceIds.join(", ")} left in place (no delete endpoint)`);
+  }
 
   console.log("");
   console.log(`write-path failures: ${failures}`);
