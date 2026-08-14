@@ -1,5 +1,5 @@
-const incomeModel = require("../models/incomeModel.cjs");
-const cashBookService = require("./cashBookService.cjs");
+import incomeModel from "./income.model.js";
+import cashBookService from "./cashbook.service.js";
 
 const createIncome = async (incomeData) => {
 
@@ -78,10 +78,18 @@ const getIncomeHistory = async (fromDate, toDate) => {
 
 };
 
-module.exports = {
+export {
 
     createIncome,
     getIncomeById,
     getIncomeHistory
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createIncome,
+    getIncomeById,
+    getIncomeHistory,
 };

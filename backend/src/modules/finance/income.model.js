@@ -1,16 +1,16 @@
-const connection = require("../config/db.cjs");
+import connection from "../../config/db.js";
 
-const createExpense = (expenseData) => {
+const createIncome = (incomeData) => {
 
     return new Promise((resolve, reject) => {
 
         const query = `
-            INSERT INTO expenses
+            INSERT INTO income
             (
-                expense_type,
+                income_type,
                 amount,
                 payment_method,
-                expense_date,
+                income_date,
                 remarks,
                 created_by
             )
@@ -22,19 +22,17 @@ const createExpense = (expenseData) => {
             query,
 
             [
-                expenseData.expense_type,
-                expenseData.amount,
-                expenseData.payment_method,
-                expenseData.expense_date,
-                expenseData.remarks,
-                expenseData.created_by
+                incomeData.income_type,
+                incomeData.amount,
+                incomeData.payment_method,
+                incomeData.income_date,
+                incomeData.remarks,
+                incomeData.created_by
             ],
 
             (err, result) => {
 
-                if (err) {
-                    return reject(err);
-                }
+                if (err) return reject(err);
 
                 resolve(result);
 
@@ -46,37 +44,37 @@ const createExpense = (expenseData) => {
 
 };
 
-const getExpenseById = (expenseId) => {
+const getIncomeById = (incomeId) => {
 
     return new Promise((resolve, reject) => {
 
-        const query = `
-            SELECT *
-            FROM expenses
-            WHERE expense_id = ?
-        `;
+        connection.query(
 
-        connection.query(query, [expenseId], (err, result) => {
+            "SELECT * FROM income WHERE income_id=?",
 
-            if (err) {
-                return reject(err);
+            [incomeId],
+
+            (err, result) => {
+
+                if (err) return reject(err);
+
+                resolve(result[0]);
+
             }
 
-            resolve(result[0]);
-
-        });
+        );
 
     });
 
 };
 
-const getExpenseHistory = (fromDate, toDate) => {
+const getIncomeHistory = (fromDate, toDate) => {
 
     return new Promise((resolve, reject) => {
 
         let query = `
             SELECT *
-            FROM expenses
+            FROM income
         `;
 
         let params = [];
@@ -84,7 +82,7 @@ const getExpenseHistory = (fromDate, toDate) => {
         if (fromDate && toDate) {
 
             query += `
-                WHERE expense_date BETWEEN ? AND ?
+                WHERE income_date BETWEEN ? AND ?
             `;
 
             params.push(fromDate, toDate);
@@ -93,7 +91,7 @@ const getExpenseHistory = (fromDate, toDate) => {
         else if (fromDate) {
 
             query += `
-                WHERE expense_date >= ?
+                WHERE income_date >= ?
             `;
 
             params.push(fromDate);
@@ -102,7 +100,7 @@ const getExpenseHistory = (fromDate, toDate) => {
         else if (toDate) {
 
             query += `
-                WHERE expense_date <= ?
+                WHERE income_date <= ?
             `;
 
             params.push(toDate);
@@ -110,7 +108,7 @@ const getExpenseHistory = (fromDate, toDate) => {
         }
 
         query += `
-            ORDER BY expense_date DESC
+            ORDER BY income_date DESC
         `;
 
         connection.query(
@@ -131,10 +129,18 @@ const getExpenseHistory = (fromDate, toDate) => {
 
 };
 
-module.exports = {
+export {
 
-    createExpense,
-    getExpenseById,
-    getExpenseHistory
+    createIncome,
+    getIncomeById,
+    getIncomeHistory,
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createIncome,
+    getIncomeById,
+    getIncomeHistory,
 };

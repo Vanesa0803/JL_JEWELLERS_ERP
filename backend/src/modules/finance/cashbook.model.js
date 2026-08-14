@@ -1,11 +1,11 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 const createEntry = (data) => {
 
     return new Promise((resolve, reject) => {
 
         const query = `
-            INSERT INTO cash_book
+            INSERT INTO cash_ledger
             (
                 transaction_type,
                 source,
@@ -52,7 +52,7 @@ const getCashBookStatement = () => {
 
         const query = `
             SELECT *
-            FROM cash_book
+            FROM cash_ledger
             ORDER BY transaction_date ASC
         `;
 
@@ -72,9 +72,16 @@ const getCashBookStatement = () => {
 
 };
 
-module.exports = {
+export {
 
     createEntry,
     getCashBookStatement
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createEntry,
+    getCashBookStatement,
 };

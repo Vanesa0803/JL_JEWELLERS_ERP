@@ -158,15 +158,13 @@ const line = (label, ok, detail) =>
   const before = await get(`/payments/advance/${CUSTOMER_ID}`);
   const beforeCount = Array.isArray(before.body?.data) ? before.body.data.length : -1;
 
-  // Card, not Cash, on purpose. A Cash advance also writes to the cash book,
-  // which still targets the non-existent `cash_book` table (S0-7). Using Card
-  // isolates the advance feature from that unrelated blocker. Switch this to
-  // "Cash" once the cash book is resolved — it is the more common real-world
-  // path and deserves the coverage.
+  // Cash on purpose — it is the longest path. A Cash advance writes the
+  // payment, its detail, AND a cash_ledger entry, so it exercises the
+  // cross-module hop into finance that used to fail (S0-7 / S2-18).
   const advance = await post("/payments/advance", {
     customer_id: CUSTOMER_ID,
     amount: 5000,
-    payment_method: "Card",
+    payment_method: "Cash",
     reference_number: "SWEEP-TEST",
     created_by: 1,
   });

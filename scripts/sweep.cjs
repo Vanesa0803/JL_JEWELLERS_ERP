@@ -14,12 +14,18 @@ const BASELINE = {
   "GET /makers": 200,
   "GET /gold-schemes/types": 200,
   "GET /employees": 200,
-  "GET /dashboard": "FAIL cash_book",
-  "GET /cashbook/statement": "FAIL cash_book",
-  "GET /finance/balance-sheet": "FAIL cash_book",
-  "GET /finance/cash-flow": "FAIL cash_book",
+  // Unblocked by migrations 2026-08-13_02 (cash_ledger) and _03 (income /
+  // expenses). All were failing before the finance module was merged.
+  "GET /dashboard": 200,
+  "GET /cashbook/statement": 200,
+  "GET /finance/balance-sheet": 200,
+  "GET /finance/cash-flow": 200,
+  "GET /finance/profit-loss": 200,
+  "GET /finance/summary/cash-flow": 200,
+  "GET /finance/summary/profit-loss": 200,
+  "GET /income/history": 200,
+
   "GET /financial-security/": "FAIL financial_security",
-  "GET /income/history": "FAIL income_date",
 
   // Fixed when the payments module was merged — S2-15. Now expected to pass,
   // so a future change that reintroduces the bug shows up as a regression.

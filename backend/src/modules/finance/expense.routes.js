@@ -1,8 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const expenseController = require("../controllers/expenseController.cjs");
+import expenseController from "./expense.controller.js";
 
 router.post(
     "/",
@@ -19,4 +19,4 @@ router.get(
     expenseController.getExpenseById
 );
 
-module.exports = router;
+export default router;

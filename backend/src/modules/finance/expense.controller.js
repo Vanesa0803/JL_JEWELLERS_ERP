@@ -1,4 +1,4 @@
-const expenseService = require("../services/expenseService.cjs");
+import expenseService from "./expense.service.js";
 
 const createExpense = async (req, res) => {
 
@@ -99,10 +99,18 @@ const getExpenseHistory = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createExpense,
     getExpenseById,
     getExpenseHistory
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createExpense,
+    getExpenseById,
+    getExpenseHistory,
 };

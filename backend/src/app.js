@@ -28,12 +28,12 @@ import { ApiResponse } from "./utils/ApiResponse.js";
 import billRoutes from "./modules/billing/bill.routes.js";
 import paymentRoutes from "./modules/payments/payment.routes.js";
 import ledgerRoutes from "./modules/ledger/ledger.routes.js";
+import cashBookRoutes from "./modules/finance/cashbook.routes.js";
+import expenseRoutes from "./modules/finance/expense.routes.js";
+import incomeRoutes from "./modules/finance/income.routes.js";
+import financeRoutes from "./modules/finance/finance.routes.js";
 
 // Still bridged as CommonJS, awaiting their turn
-import cashBookRoutes from "./routes/cashBookRoutes.cjs";
-import expenseRoutes from "./routes/expenseRoutes.cjs";
-import incomeRoutes from "./routes/incomeRoutes.cjs";
-import financeRoutes from "./routes/financeRoutes.cjs";
 import dashboardRoutes from "./routes/dashboardRoutes.cjs";
 import reportRoutes from "./routes/reportRoutes.cjs";
 import exportRoutes from "./routes/exportRoutes.cjs";

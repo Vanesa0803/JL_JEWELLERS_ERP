@@ -1,4 +1,4 @@
-const connection = require("../config/db.cjs");
+import connection from "../../config/db.js";
 
 const getProfitLossSummary = () => {
 
@@ -18,13 +18,13 @@ const getProfitLossSummary = () => {
 
                 (
                     SELECT COALESCE(SUM(amount),0)
-                    FROM cash_book
+                    FROM cash_ledger
                     WHERE transaction_type='Cash In'
                 ) AS total_cash_in,
 
                 (
                     SELECT COALESCE(SUM(amount),0)
-                    FROM cash_book
+                    FROM cash_ledger
                     WHERE transaction_type='Cash Out'
                 ) AS total_cash_out
         `;
@@ -88,7 +88,7 @@ const getCashFlowSummary = () => {
                     END
                 ),0) AS refunds
 
-            FROM cash_book
+            FROM cash_ledger
         `;
 
         connection.query(query, (err, result) => {
@@ -297,7 +297,7 @@ const getBalanceSheet = (fromDate, toDate) => {
                 (
                     SELECT
                         COALESCE(SUM(amount), 0)
-                    FROM cash_book
+                    FROM cash_ledger
                     WHERE transaction_type = 'Cash In'
                 `;
 
@@ -323,7 +323,7 @@ const getBalanceSheet = (fromDate, toDate) => {
 
                     SELECT
                         COALESCE(SUM(amount), 0)
-                    FROM cash_book
+                    FROM cash_ledger
                     WHERE transaction_type = 'Cash Out'
         `;
 
@@ -449,7 +449,7 @@ const getCashFlow = (fromDate, toDate) => {
                     0
                 ) AS cash_out
 
-            FROM cash_book
+            FROM cash_ledger
 
         `;
 
@@ -569,7 +569,7 @@ const getOutstandingPayables = (fromDate, toDate) => {
 
 
 
-module.exports = {
+export {
 
     getProfitLossSummary,
     getCashFlowSummary,
@@ -580,4 +580,17 @@ module.exports = {
     getCashFlow,
     getOutstandingPayables
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getProfitLossSummary,
+    getCashFlowSummary,
+    getBankAccounts,
+    getGSTSummary,
+    getProfitLoss,
+    getBalanceSheet,
+    getCashFlow,
+    getOutstandingPayables,
 };

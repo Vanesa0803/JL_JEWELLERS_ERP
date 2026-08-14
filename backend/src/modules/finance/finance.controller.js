@@ -1,4 +1,4 @@
-const financeService = require("../services/financeService.cjs");
+import financeService from "./finance.service.js";
 
 const getProfitLossSummary = async (req, res) => {
 
@@ -277,7 +277,7 @@ const getFinanceDashboard = async (req, res) => {
 
 
 
-module.exports = {
+export {
 
     getProfitLossSummary,
     getCashFlowSummary,
@@ -289,4 +289,18 @@ module.exports = {
     getOutstandingPayables,
     getFinanceDashboard
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getProfitLossSummary,
+    getCashFlowSummary,
+    getBankAccounts,
+    getGSTSummary,
+    getProfitLoss,
+    getBalanceSheet,
+    getCashFlow,
+    getOutstandingPayables,
+    getFinanceDashboard,
 };

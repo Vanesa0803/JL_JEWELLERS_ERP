@@ -47,7 +47,7 @@ const getDashboardSummary = () => {
                             ),
                             0
                         )
-                    FROM cash_book
+                    FROM cash_ledger
                 ) AS cash_flow,
 
                 (

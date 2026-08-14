@@ -37,7 +37,7 @@ It stays on `auth-integration` until feature work resumes.
 | 1 | billing | Riya | ✅ | ✅ | ✅ | **merged — 2 real bugs fixed** |
 | 2 | payments | Riya | ✅ | ✅ | ✅ | **merged — S2-15 fixed; advances blocked on a schema decision** |
 | 3 | ledger | **Riya** (over Purvansh) | ✅ | ✅ | ✅ | **merged — duplicate resolved on evidence** |
-| 4 | finance | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 4 | finance | Riya | ✅ | ✅ | ✅ | **merged — S0-7 and S2-16 resolved, 8 endpoints unblocked** |
 | 5 | reports + analytics | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 6 | orders + makers | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 7 | schemes | Riya | ⏳ | ⏳ | ⏳ | not started |
@@ -567,6 +567,113 @@ is that test runs must not quietly pollute the data they are measuring.
 read  : 33 routes, 25 OK, 8 known-broken, 0 regressions
 write : 5/5 pass
 database left clean: 15 bills, 19 bill_items, 30 ledger rows, 15 payments
+```
+
+**Verdict: merged.**
+
+---
+
+### 4. Finance — ✅ MERGED · 2026-08-13
+
+The biggest single unblock so far. **16 files** converted to ESM under
+`src/modules/finance/` — cash book, expenses, income and the finance summaries —
+and two migrations that between them turned 8 failing endpoints into working ones.
+
+#### `S0-7` resolved — migration `2026-08-13_02`
+
+The long-standing "rename `cash_book` → `cash_ledger`" turned out not to be a rename.
+Only `transaction_type` and `amount` overlapped. `cash_ledger` was extended to the shape
+the code actually writes:
+
+```
++ source        where the entry came from (Bill, Advance Payment, Expense …)
++ reference_id  the id of that source record
++ customer_id   the customer involved, when there is one
++ created_by    the employee who recorded it
+~ description -> remarks
+```
+
+**Which name won, and why.** `cash_ledger` — it belongs to a family already in the schema
+(`bank_ledger`, `customer_ledger`, `supplier_ledger`, `expense_ledger`) whereas `cash_book`
+sits outside it. The 9 code references were changed instead of renaming the table to suit
+the code.
+
+Conditions were ideal: `cash_ledger` had **0 rows** and **0 code references**, so nothing
+could be disturbed.
+
+#### `S2-16` resolved — migration `2026-08-13_03`
+
+`income` and `expenses` are the same kind of record and the code treats them as a pair.
+The schema did not:
+
+```
+expenses  expense_id, expense_type,  amount, expense_date,  remarks
+income    income_id,  income_source, amount, received_date, remarks
+```
+
+The code writes `income_type` / `income_date` — mirroring expenses — plus `payment_method`
+and `created_by` to **both**, none of which existed. Renaming income's two columns rather
+than changing the code left the tables symmetric, which is what the code and common sense
+both expect:
+
+```
+expenses  expense_id, expense_type, amount, payment_method, expense_date, remarks, created_by
+income    income_id,  income_type,  amount, payment_method, income_date,  remarks, created_by
+```
+
+`income` was empty, so the renames were free.
+
+#### Endpoints unblocked
+
+| Endpoint | Before | After |
+|---|:--:|:--:|
+| `GET /dashboard` | 500 `cash_book` | **200** |
+| `GET /cashbook/statement` | 400 `cash_book` | **200** |
+| `GET /finance/balance-sheet` | 500 `cash_book` | **200** |
+| `GET /finance/cash-flow` | 500 `cash_book` | **200** |
+| `GET /finance/profit-loss` | (blocked) | **200** |
+| `GET /finance/summary/cash-flow` | (blocked) | **200** |
+| `GET /income/history` | 400 `income_date` | **200** |
+| `GET /expenses/history` | — | **200** |
+
+**The dashboard now answers.** That was the single most visible failure in the whole audit.
+
+#### `S2-18` — the Cash path now works end to end
+
+The advance test was switched back from Card to **Cash**, the longest path in the system:
+it writes a payment, its detail, and a `cash_ledger` entry across two modules. Verified:
+
+```
+POST /payments/advance {payment_method:"Cash"}  ->  201
+cash_ledger: Cash In | Advance Payment | ref 22 | customer 3 | 2500.00
+```
+
+The observed failure is gone. **The structural point stands, though:** the cash-book write
+still happens after the payment's transaction commits, so a future failure there would
+still leave a committed payment. Lower priority now that the path works, but not closed —
+kept in the backlog rather than quietly marked done.
+
+#### Cleanup
+
+16 superseded `.cjs` files deleted. `dashboardModel.cjs` — not yet converted — had its
+`cash_book` references repointed so the dashboard works now rather than waiting for
+module 5. **Zero `cash_book` references remain anywhere in the codebase.**
+
+Bridge is shrinking: **53 `.cjs` files left**, down from 83.
+
+#### A miss worth recording
+
+`expense.service.js` and `income.service.js` both import `cashBookService`, which I had not
+mapped before converting — the server failed to start. Fixed in a minute, but it is the
+second time a cross-module import has been missed. Worth listing every importer *before*
+converting, not after.
+
+**Sweeps**
+
+```
+read  : 36 routes, 33 OK, 3 known-broken, 0 regressions
+write : 5/5 pass, including the full Cash advance path
+database left clean: 15 bills, 15 payments, 0 cash_ledger, 33 customer_ledger
 ```
 
 **Verdict: merged.**

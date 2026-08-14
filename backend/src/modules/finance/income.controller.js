@@ -1,4 +1,4 @@
-const incomeService = require("../services/incomeService.cjs");
+import incomeService from "./income.service.js";
 
 const createIncome = async (req, res) => {
 
@@ -97,10 +97,18 @@ const getIncomeHistory = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createIncome,
     getIncomeById,
     getIncomeHistory
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createIncome,
+    getIncomeById,
+    getIncomeHistory,
 };

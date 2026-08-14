@@ -1,4 +1,4 @@
-const cashBookService = require("../services/cashBookService.cjs");
+import cashBookService from "./cashbook.service.js";
 
 const getCashBookStatement = async (req, res) => {
 
@@ -31,8 +31,14 @@ const getCashBookStatement = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     getCashBookStatement
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    getCashBookStatement,
 };

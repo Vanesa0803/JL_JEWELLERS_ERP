@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const financeController =
-    require("../controllers/financeController.cjs");
+import financeController from "./finance.controller.js";
 
 
 // Finance Summary Reports
@@ -54,4 +53,4 @@ router.get(
     financeController.getFinanceDashboard
 );
 
-module.exports = router;
+export default router;

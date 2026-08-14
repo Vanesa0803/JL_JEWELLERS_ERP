@@ -158,11 +158,19 @@ CREATE TABLE `cash_ledger` (
   `cash_entry_id` int NOT NULL AUTO_INCREMENT,
   `transaction_date` datetime DEFAULT NULL,
   `transaction_type` varchar(50) DEFAULT NULL,
+  -- source / reference_id / customer_id / created_by added, and description
+  -- renamed to remarks, by migration 2026-08-13_02. The finance code wrote to
+  -- a `cash_book` table that never existed; this is the shape it expects.
+  `source` varchar(50) DEFAULT NULL,
+  `reference_id` int DEFAULT NULL,
+  `customer_id` int DEFAULT NULL,
   `amount` decimal(15,2) DEFAULT NULL,
-  `description` text,
+  `remarks` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
   PRIMARY KEY (`cash_entry_id`),
-  KEY `idx_transaction_date` (`transaction_date`)
+  KEY `idx_transaction_date` (`transaction_date`),
+  KEY `idx_cash_ledger_type_date` (`transaction_type`,`transaction_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -253,11 +261,15 @@ DROP TABLE IF EXISTS `expenses`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `expenses` (
+  -- payment_method and created_by added by migration 2026-08-13_03, mirroring
+  -- `income`.
   `expense_id` int NOT NULL AUTO_INCREMENT,
   `expense_type` varchar(100) DEFAULT NULL,
   `amount` decimal(15,2) DEFAULT NULL,
+  `payment_method` varchar(50) DEFAULT NULL,
   `expense_date` date DEFAULT NULL,
   `remarks` text,
+  `created_by` int DEFAULT NULL,
   PRIMARY KEY (`expense_id`),
   KEY `idx_expense_date` (`expense_date`),
   KEY `idx_expense_type` (`expense_type`)
@@ -371,14 +383,19 @@ DROP TABLE IF EXISTS `income`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `income` (
+  -- Renamed income_source -> income_type and received_date -> income_date by
+  -- migration 2026-08-13_03, plus payment_method and created_by, so this table
+  -- mirrors `expenses`. The code always treated them as a matched pair.
   `income_id` int NOT NULL AUTO_INCREMENT,
-  `income_source` varchar(100) DEFAULT NULL,
+  `income_type` varchar(100) DEFAULT NULL,
   `amount` decimal(15,2) DEFAULT NULL,
-  `received_date` date DEFAULT NULL,
+  `payment_method` varchar(50) DEFAULT NULL,
+  `income_date` date DEFAULT NULL,
   `remarks` text,
+  `created_by` int DEFAULT NULL,
   PRIMARY KEY (`income_id`),
-  KEY `idx_received_date` (`received_date`),
-  KEY `idx_income_source` (`income_source`)
+  KEY `idx_received_date` (`income_date`),
+  KEY `idx_income_source` (`income_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

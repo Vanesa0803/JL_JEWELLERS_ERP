@@ -1,4 +1,4 @@
-const cashBookModel = require("../models/cashBookModel.cjs");
+import cashBookModel from "./cashbook.model.js";
 
 const createCashEntry = async (data) => {
 
@@ -79,9 +79,16 @@ const getCashBookStatement = async () => {
 
 };
 
-module.exports = {
+export {
 
     createCashEntry,
     getCashBookStatement
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createCashEntry,
+    getCashBookStatement,
 };

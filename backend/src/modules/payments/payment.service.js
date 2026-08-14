@@ -1,7 +1,7 @@
 import paymentModel from "./payment.model.js";
 import billModel from "../billing/bill.model.js";
 import ledgerService from "../ledger/ledger.service.js";
-import cashBookService from "../../services/cashBookService.cjs";
+import cashBookService from "../finance/cashbook.service.js";
 
 const recordPayment = async (paymentData) => {
 
