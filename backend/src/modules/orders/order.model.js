@@ -1,4 +1,4 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 const createOrder = (connection, orderData) => {
 
@@ -418,7 +418,7 @@ const getCurrentStatus = (orderId) => {
 
 };
 
-module.exports = {
+export {
 
     createOrder,
     createOrderItem,
@@ -432,4 +432,20 @@ module.exports = {
     addOrderHistory,
     getCurrentStatus
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createOrder,
+    createOrderItem,
+    createStatusHistory,
+    getAllOrders,
+    getOrderById,
+    getOrderItems,
+    getOrderHistory,
+    updateOrder,
+    updateOrderStatus,
+    addOrderHistory,
+    getCurrentStatus,
 };

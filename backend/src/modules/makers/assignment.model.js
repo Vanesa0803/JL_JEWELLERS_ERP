@@ -1,4 +1,4 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 const createAssignment = (assignmentData) => {
 
@@ -378,7 +378,7 @@ const getDelayedAssignments = () => {
 };
 
 
-module.exports = {
+export {
 
     createAssignment,
     getOrder,
@@ -389,4 +389,17 @@ module.exports = {
     getPendingAssignments,
     getDelayedAssignments
     
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createAssignment,
+    getOrder,
+    getMaker,
+    getActiveAssignment,
+    updateAssignmentStatus,
+    getAllAssignments,
+    getPendingAssignments,
+    getDelayedAssignments,
 };

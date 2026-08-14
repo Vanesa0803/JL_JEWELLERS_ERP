@@ -1,5 +1,4 @@
-const makerAssignmentService =
-require("../services/makerAssignmentService.cjs");
+import makerAssignmentService from "./assignment.service.js";
 
 const createAssignment = async (req, res) => {
 
@@ -161,7 +160,7 @@ const getDelayedAssignments = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createAssignment,
     updateAssignmentStatus,
@@ -170,4 +169,14 @@ module.exports = {
     getDelayedAssignments
 
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createAssignment,
+    updateAssignmentStatus,
+    getAllAssignments,
+    getPendingAssignments,
+    getDelayedAssignments,
 };

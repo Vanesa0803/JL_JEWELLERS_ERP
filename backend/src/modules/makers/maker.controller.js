@@ -1,5 +1,4 @@
-const makerService =
-require("../services/makerService.cjs");
+import makerService from "./maker.service.js";
 
 const createMaker = async (req, res) => {
 
@@ -258,7 +257,7 @@ const getMakerPaymentLedger = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createMaker,
     getAllMakers,
@@ -270,4 +269,17 @@ module.exports = {
     getMakerPaymentLedger
 
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createMaker,
+    getAllMakers,
+    getMakerById,
+    updateMaker,
+    deactivateMaker,
+    getMakerProductivity,
+    getMakerPerformance,
+    getMakerPaymentLedger,
 };

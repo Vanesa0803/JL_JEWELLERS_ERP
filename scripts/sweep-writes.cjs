@@ -45,6 +45,22 @@ const post = async (route, body) => {
   return { status: res.status, body: parsed };
 };
 
+const patch = async (route, body) => {
+  const res = await fetch(BASE + route, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = { raw: text.slice(0, 200) };
+  }
+  return { status: res.status, body: parsed };
+};
+
 const get = async (route) => {
   const res = await fetch(BASE + route);
   const text = await res.text();
@@ -190,6 +206,67 @@ const line = (label, ok, detail) =>
     if (!readBackOk) failures++;
 
     advancePaymentIds.push(advance.body?.data?.payment_id ?? advance.body?.payment_id);
+  }
+
+  /* ---------------------------------------------------------------- *
+   * Customer orders — three transaction sites (create / cancel /
+   * deliver) were rewritten onto pooled connections via
+   * utils/withTransaction.js. Reads cannot detect a broken transaction,
+   * so the full create -> cancel round trip runs here.
+   * ---------------------------------------------------------------- */
+  const order = await post("/customer-orders", {
+    customer_id: CUSTOMER_ID,
+    expected_delivery: "2026-12-31",
+    // enum('Ready Stock','Custom Jewellery','Repair') — must match exactly
+    order_type: "Custom Jewellery",
+    total_amount: 20000,
+    advance_amount: 5000,
+    remarks: "SWEEP-TEST",
+    items: [
+      {
+        product_id: 1,
+        quantity: 1,
+        gross_weight: 12,
+        net_weight: 11,
+        purity_id: 1,
+        making_charge: 1000,
+        estimated_price: 20000,
+        remarks: "SWEEP-TEST",
+      },
+    ],
+  });
+
+  const orderId = order.body?.data?.customer_order_id ?? order.body?.customer_order_id;
+  const orderOk = order.status < 400 && Boolean(orderId);
+
+  line(
+    "POST /customer-orders (transaction)",
+    orderOk,
+    orderOk ? `order ${orderId}` : JSON.stringify(order.body).slice(0, 80)
+  );
+  if (!orderOk) failures++;
+
+  if (orderOk) {
+    // Did the items actually commit, or did only the order row land?
+    const readBack = await get(`/customer-orders/${orderId}`);
+    const payload = readBack.body?.data ?? readBack.body;
+    const items = payload?.items ?? [];
+    const itemsOk = readBack.status === 200 && Array.isArray(items) && items.length > 0;
+
+    line(
+      "  -> order items committed",
+      itemsOk,
+      itemsOk ? `${items.length} item(s)` : "NO ITEMS — transaction incomplete"
+    );
+    if (!itemsOk) failures++;
+
+    // cancelOrder is a second transaction site, with its own rollback path
+    const cancel = await patch(`/customer-orders/${orderId}/cancel`, {
+      remarks: "SWEEP-TEST cleanup",
+    });
+    const cancelOk = cancel.status < 400;
+    line("PATCH /customer-orders/:id/cancel", cancelOk, cancelOk ? "cancelled" : `${cancel.status}`);
+    if (!cancelOk) failures++;
   }
 
   /* ---------------------------------------------------------------- *

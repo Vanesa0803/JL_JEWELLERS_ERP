@@ -36,11 +36,11 @@ import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import reportRoutes from "./modules/reports/report.routes.js";
 import exportRoutes from "./modules/reports/export.routes.js";
 import analyticsRoutes from "./modules/reports/analytics.routes.js";
+import customerOrderRoutes from "./modules/orders/order.routes.js";
+import makerRoutes from "./modules/makers/maker.routes.js";
+import makerAssignmentRoutes from "./modules/makers/assignment.routes.js";
 
 // Still bridged as CommonJS, awaiting their turn
-import customerOrderRoutes from "./routes/customerOrderRoutes.cjs";
-import makerRoutes from "./routes/makerRoutes.cjs";
-import makerAssignmentRoutes from "./routes/makerAssignmentRoutes.cjs";
 import goldSchemeRoutes from "./routes/goldSchemeRoutes.cjs";
 import financialSecurityRoutes from "./routes/financialSecurityRoutes.cjs";
 import limiter from "./middleware/rateLimiter.cjs";

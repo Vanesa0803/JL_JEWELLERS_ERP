@@ -39,7 +39,7 @@ It stays on `auth-integration` until feature work resumes.
 | 3 | ledger | **Riya** (over Purvansh) | ✅ | ✅ | ✅ | **merged — duplicate resolved on evidence** |
 | 4 | finance | Riya | ✅ | ✅ | ✅ | **merged — S0-7 and S2-16 resolved, 8 endpoints unblocked** |
 | 5 | reports + analytics + exports + dashboard | Riya | ✅ | ✅ | ✅ | **merged — S2-11 resolved, exports proven to produce real files** |
-| 6 | orders + makers | Riya | ⏳ | ⏳ | ⏳ | not started |
+| 6 | orders + makers | Riya | ✅ | ✅ | ✅ | **merged — 4 transaction sites pooled via a shared helper** |
 | 7 | schemes | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 8 | security (PIN) | Riya | ⏳ | ⏳ | ⏳ | not started |
 | 9 | masters | Purvansh | n/a | ⏳ | ⏳ | not started |
@@ -752,6 +752,90 @@ database left clean
 
 Only the three financial-security endpoints still fail — module 8, which also unwinds the
 last deprecated shadow chain.
+
+**Verdict: merged.**
+
+---
+
+### 6. Orders and makers — ✅ MERGED · 2026-08-13
+
+**12 files** converted into `src/modules/orders/` and `src/modules/makers/`. Makers and
+maker-assignments share a module — an assignment only exists in relation to a maker.
+
+#### `utils/withTransaction.js` — new shared helper
+
+Four transaction sites had to move onto pooled connections (three in orders: create,
+cancel, deliver; one in maker assignments). Rather than paste the same twenty lines of
+`getConnection` / `release` / `rollback` boilerplate a fourth, fifth, sixth and seventh
+time, it is now one helper:
+
+```js
+const createOrder = (data) =>
+    withTransaction(async (db, resolve, reject) => {
+        try {
+            const id = await model.insert(db, data);
+            db.commit((err) => err ? db.rollback(() => reject(err)) : resolve(id));
+        } catch (error) {
+            db.rollback(() => reject(error));
+        }
+    });
+```
+
+`resolve` and `reject` release the connection for you, and are guarded so calling either
+twice cannot double-release. **That guard matters:** a missed `release()` leaks a
+connection permanently, and once the pool is exhausted the entire app hangs with no error
+message. Hand-copied boilerplate is exactly where that mistake gets made.
+
+This also retires the copies written by hand in billing and payments as a pattern — future
+transaction sites use the helper.
+
+#### All 4 remaining transaction sites now pooled
+
+| Site | Status |
+|---|---|
+| `billModel.createBill` / `updateBill` | pooled (module 1) |
+| `paymentModel.createAdvancePayment` | pooled (module 2) |
+| `orderService` create / cancel / deliver | **pooled (this module)** |
+| `assignmentService.createAssignment` | **pooled (this module)** |
+| `goldSchemeModel` ×3 | module 7 — the last ones |
+
+Once module 7 lands, the temporary single `connection` in `db.cjs` can be deleted and
+decision 2 is finally complete.
+
+#### Write coverage extended
+
+Reads cannot detect a broken transaction, so the sweep now runs a full order round trip:
+create → verify the items actually committed → cancel (a second transaction with its own
+rollback path).
+
+```
+POST /customer-orders (transaction)   PASS  order 1
+  -> order items committed            PASS  1 item(s)
+PATCH /customer-orders/:id/cancel     PASS  cancelled
+```
+
+**8 write checks now, up from 3.**
+
+#### A test-data lesson, not a code bug
+
+The first order attempt failed with `Data truncated for column 'order_type'`. The cause
+was my test payload, not the code: `order_type` is
+`enum('Ready Stock','Custom Jewellery','Repair')` and I had sent `"Custom"`. Worth noting
+because a truncation error reads like corruption and is actually a rejected enum value —
+the schema was defending itself correctly.
+
+#### Cleanup
+
+12 superseded `.cjs` files deleted. Bridge down to **22 `.cjs` files from 83** — 73%
+converted.
+
+**Sweeps**
+
+```
+read  : 47 routes, 44 OK, 3 known-broken, 0 regressions
+write : 8/8 pass
+database left clean
+```
 
 **Verdict: merged.**
 

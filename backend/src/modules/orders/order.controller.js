@@ -1,5 +1,4 @@
-const customerOrderService =
-require("../services/customerOrderService.cjs");
+import customerOrderService from "./order.service.js";
 
 const createOrder = async (req, res) => {
 
@@ -206,7 +205,7 @@ const deliverOrder = async (req, res) => {
 
 };
 
-module.exports = {
+export {
 
     createOrder,
     getAllOrders,
@@ -215,4 +214,15 @@ module.exports = {
     cancelOrder,
     deliverOrder
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createOrder,
+    getAllOrders,
+    getOrderById,
+    updateOrder,
+    cancelOrder,
+    deliverOrder,
 };

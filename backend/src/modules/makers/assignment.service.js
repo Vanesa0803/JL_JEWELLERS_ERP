@@ -1,19 +1,10 @@
-const db = require("../config/db.cjs");
+import { withTransaction } from "../../utils/withTransaction.js";
 
-const makerAssignmentModel =
-require("../models/makerAssignmentModel.cjs");
+import makerAssignmentModel from "./assignment.model.js";
 
 const createAssignment = async (assignmentData) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -110,8 +101,6 @@ const createAssignment = async (assignmentData) => {
 
             }
 
-        });
-
     });
 
 };
@@ -151,7 +140,7 @@ const getDelayedAssignments = async () => {
 
 };
 
-module.exports = {
+export {
 
     createAssignment,
     updateAssignmentStatus,
@@ -159,4 +148,14 @@ module.exports = {
     getPendingAssignments,
     getDelayedAssignments
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createAssignment,
+    updateAssignmentStatus,
+    getAllAssignments,
+    getPendingAssignments,
+    getDelayedAssignments,
 };

@@ -1,9 +1,8 @@
-const express = require("express");
+import express from "express";
 
 const router = express.Router();
 
-const makerController =
-require("../controllers/makerController.cjs");
+import makerController from "./maker.controller.js";
 
 router.post(
     "/",
@@ -46,4 +45,4 @@ router.patch(
     makerController.deactivateMaker
 );
 
-module.exports = router;
+export default router;

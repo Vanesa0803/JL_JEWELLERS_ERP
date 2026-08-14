@@ -1,19 +1,10 @@
-const db = require("../config/db.cjs");
+import { withTransaction } from "../../utils/withTransaction.js";
 
-const customerOrderModel =
-require("../models/customerOrderModel.cjs");
+import customerOrderModel from "./order.model.js";
 
 const createOrder = async (orderData) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -84,8 +75,6 @@ const createOrder = async (orderData) => {
                 });
 
             }
-
-        });
 
     });
 
@@ -219,15 +208,7 @@ const updateOrder = async (orderId, orderData) => {
 
 const cancelOrder = async (orderId, remarks) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -298,23 +279,13 @@ const cancelOrder = async (orderId, remarks) => {
 
             }
 
-        });
-
     });
 
 };
 
 const deliverOrder = async (orderId, remarks) => {
 
-    return new Promise((resolve, reject) => {
-
-        db.beginTransaction(async (err) => {
-
-            if (err) {
-
-                return reject(err);
-
-            }
+    return withTransaction(async (db, resolve, reject) => {
 
             try {
 
@@ -383,13 +354,11 @@ const deliverOrder = async (orderId, remarks) => {
 
             }
 
-        });
-
     });
 
 };
 
-module.exports = {
+export {
 
     createOrder,
     getAllOrders,
@@ -398,4 +367,15 @@ module.exports = {
     cancelOrder ,
     deliverOrder   
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createOrder,
+    getAllOrders,
+    getOrderById,
+    updateOrder,
+    cancelOrder,
+    deliverOrder,
 };

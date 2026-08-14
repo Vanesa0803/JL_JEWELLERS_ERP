@@ -1,4 +1,4 @@
-const db = require("../config/db.cjs");
+import db from "../../config/db.js";
 
 const createMaker = (makerData) => {
 
@@ -468,7 +468,7 @@ const getMakerPaymentLedger = () => {
 
 };
 
-module.exports = {
+export {
 
     createMaker,
     updateMakerCode,
@@ -480,4 +480,18 @@ module.exports = {
     getMakerPerformance,
     getMakerPaymentLedger
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createMaker,
+    updateMakerCode,
+    getAllMakers,
+    getMakerById,
+    updateMaker,
+    deactivateMaker,
+    getMakerProductivity,
+    getMakerPerformance,
+    getMakerPaymentLedger,
 };

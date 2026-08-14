@@ -1,5 +1,4 @@
-const makerModel =
-require("../models/makerModel.cjs");
+import makerModel from "./maker.model.js";
 
 const createMaker = async (makerData) => {
 
@@ -195,7 +194,7 @@ const getMakerPaymentLedger = async () => {
 
 };
 
-module.exports = {
+export {
 
     createMaker,
     getAllMakers,
@@ -206,4 +205,17 @@ module.exports = {
     getMakerPerformance,
     getMakerPaymentLedger
 
+};
+
+// Default export mirrors the named exports, so both
+// `import x from` and `import { a } from` work.
+export default {
+    createMaker,
+    getAllMakers,
+    getMakerById,
+    updateMaker,
+    deactivateMaker,
+    getMakerProductivity,
+    getMakerPerformance,
+    getMakerPaymentLedger,
 };
