@@ -46,7 +46,7 @@ It stays on `auth-integration` until feature work resumes.
 | 10 | customers | Purvansh | n/a | ✅ | ✅ | **merged — 1 systemic bug fixed across 17 sites** |
 | 11 | suppliers | Purvansh | n/a | ✅ | ✅ | **merged — supplier payments deferred to purchase (real dependency)** |
 | 12 | products | Purvansh | n/a | ✅ | ✅ | **merged — cross-module validation working** |
-| 13 | inventory | Purvansh | n/a | ⏳ | ⏳ | not started |
+| 13 | inventory | Purvansh | n/a | ✅ | ✅ | **merged — reported "Pending", was complete** |
 | 14 | purchase | Purvansh | n/a | ⏳ | ⏳ | not started |
 | 15 | auth | auth-integration | ⏳ | ⏳ | ⏳ | not started |
 | 16 | hr (no salary) | auth-integration | ⏳ | ⏳ | ⏳ | not started |
@@ -1308,6 +1308,70 @@ DELETE /products/:id                  200
 
 ```
 read  : 77 routes, 77 OK, 0 regressions
+write : 10/10 pass
+```
+
+**Verdict: merged.**
+
+---
+
+### 13. Inventory — ✅ MERGED · 2026-08-13
+
+**8 files** into `src/modules/inventory/`: stock operations and 11 analytics endpoints.
+
+**This is the module the original status report listed as ⏳ Pending.** All 14 endpoints
+answered on the first run, and the stock operations work correctly with full validation.
+It was finished; it had simply never been mounted.
+
+| Reported | Actual |
+|---|---|
+| Inventory UI 🔄, Product/Stock Management 🔄 | backend complete |
+| Stock In/Out ⏳ Pending | working, with validation |
+| Stock Adjustment ⏳ Pending | working |
+| Gold/Silver Stock Tracking ⏳ Pending | working, plus platinum, diamond and stones |
+| Inventory Analytics 🔄 In Development | 11 endpoints, all answering |
+
+#### Stock operations verified against the database, not just by status code
+
+```
+GET  /inventory?product_id=1              available_quantity 25
+POST /inventory/in      (+5, Purchase)    200
+POST /inventory/out     (-5, Sale)        200
+POST /inventory/adjust  (+2, Adjustment)  200
+                                          -> available_quantity 27
+```
+
+And the `stock_movements` ledger recorded each one with the correct sign:
+
+```
+Purchase    +5
+Sale        -5
+Adjustment  +2
+```
+
+Restored to 25 afterwards and the test movements removed.
+
+#### The validation is genuinely good
+
+```
+POST /inventory/out beyond available stock   400  correctly refused
+POST /inventory/in  nonexistent product      404  correctly refused
+POST with an invalid movement_type           400  correctly refused
+```
+
+**Refusing to oversell matters most.** Allowing stock to go negative in a jewellery shop
+means selling an item that is not there. The service checks available quantity before
+applying an OUT movement, and `movement_type` is validated against a fixed list rather
+than passed straight to the database.
+
+Second cross-module dependency, also working: `inventory.service.js` imports
+`ProductRepository` from products and returns a clean 404 for a product that does not
+exist, rather than a foreign-key error.
+
+**Sweeps**
+
+```
+read  : 87 routes, 87 OK, 0 regressions
 write : 10/10 pass
 ```
 

@@ -64,6 +64,16 @@ const BASELINE = {
   "GET /products/1/variants": 200,
   "GET /products/1/barcodes": 200,
   "GET /products/1/images": 200,
+  "GET /inventory": 200,
+  "GET /inventory/low-stock": 200,
+  "GET /inventory/movements": 200,
+  "GET /inventory-analytics/gold": 200,
+  "GET /inventory-analytics/silver": 200,
+  "GET /inventory-analytics/dead-stock": 200,
+  "GET /inventory-analytics/fast-moving": 200,
+  "GET /inventory-analytics/slow-moving": 200,
+  "GET /inventory-analytics/overstock": 200,
+  "GET /inventory-analytics/stock-aging": 200,
 
   // Phase B — masters, recovered from developer-purvansh. This code had never
   // run before 2026-08-13.

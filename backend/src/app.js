@@ -62,6 +62,9 @@ import supplierDocumentRoutes from "./modules/suppliers/supplierDocument.routes.
 import productRoutes from "./modules/products/product.routes.js";
 import productVariantRoutes from "./modules/products/productVariant.routes.js";
 
+import inventoryRoutes from "./modules/inventory/inventory.routes.js";
+import inventoryAnalyticsRoutes from "./modules/inventory/inventoryAnalytics.routes.js";
+
 import limiter from "./middleware/rateLimiter.js";
 
 /* ------------------------------------------------------------------ *
@@ -163,6 +166,10 @@ api.use("/suppliers", supplierDocumentRoutes);
 // Phase B — products
 api.use("/products", productRoutes);
 api.use("/product-variants", productVariantRoutes);
+
+// Phase B — inventory
+api.use("/inventory", inventoryRoutes);
+api.use("/inventory-analytics", inventoryAnalyticsRoutes);
 
 app.use("/api/v1", api);
 app.use("/api", api); // temporary alias — remove once the frontend moves to /api/v1
