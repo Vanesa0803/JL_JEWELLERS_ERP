@@ -95,7 +95,35 @@ import attendanceRoutes from "./modules/hr/attendance.routes.js";
 
 const app = express();
 
-app.use(cors());
+/*
+ * CORS is restricted to the app's own dev server (S1-6).
+ *
+ * This was a bare `cors()`, which allows every origin. It mattered less than
+ * it looks — the API is bound to loopback, and the app itself goes through the
+ * Vite proxy so its requests are same-origin — but "allow everyone" is the
+ * wrong default to leave sitting in a file, especially in a project where the
+ * next person may well change the bind address.
+ *
+ * Set CORS_ORIGIN in backend/.env (comma-separated) if the app is ever served
+ * from somewhere else.
+ */
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // No origin: same-origin requests, curl, and the Vite proxy itself.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"), false);
+    },
+    credentials: true,
+  })
+);
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json({ limit: "16kb" }));
