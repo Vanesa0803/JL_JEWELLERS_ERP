@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -5,64 +6,124 @@ import {
   Pencil,
   XCircle,
   Truck,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+
+import api from "../../services/api";
+import { money, shortDate } from "../../lib/format";
+
+/**
+ * Maps a customer order from GET /customer-orders onto this page's shape.
+ *
+ * order_status is enum('Pending','Approved','In Production','Ready',
+ * 'Delivered','Cancelled') — six values. The mock used "In Progress", which is
+ * not one of them, so the status pill would never have coloured correctly for
+ * a real order.
+ */
+const fromApi = (order) => ({
+  id: order.customer_order_id,
+  orderId: order.order_number,
+  customer: order.customer_name || "—",
+  orderDate: shortDate(order.order_date),
+  deliveryDate: shortDate(order.expected_delivery),
+  amount: money(order.total_amount),
+  balance: Number(order.balance_amount ?? 0),
+  status: order.order_status,
+  type: order.order_type,
+});
 
 
-const ordersData = [
-  {
-    orderId: "ORD00021",
-    customer: "Rahul Sharma",
-    orderDate: "08 Aug 2026",
-    deliveryDate: "15 Aug 2026",
-    amount: "₹1,25,000",
-    status: "Pending",
-  },
-  {
-    orderId: "ORD00020",
-    customer: "Priya Singh",
-    orderDate: "07 Aug 2026",
-    deliveryDate: "12 Aug 2026",
-    amount: "₹85,000",
-    status: "In Progress",
-  },
-  {
-    orderId: "ORD00019",
-    customer: "Amit Kumar",
-    orderDate: "06 Aug 2026",
-    deliveryDate: "10 Aug 2026",
-    amount: "₹62,500",
-    status: "Ready",
-  },
-  {
-    orderId: "ORD00018",
-    customer: "Neha Mehra",
-    orderDate: "05 Aug 2026",
-    deliveryDate: "09 Aug 2026",
-    amount: "₹48,000",
-    status: "Delivered",
-  },
-  {
-    orderId: "ORD00017",
-    customer: "Rohan Sharma",
-    orderDate: "04 Aug 2026",
-    deliveryDate: "08 Aug 2026",
-    amount: "₹95,000",
-    status: "Cancelled",
-  },
-];
 
+
+/* Keys match order_status exactly. "In Progress" was in the mock and is not a
+   real status; the schema has "Approved" and "In Production" instead. */
 const statusStyles = {
   Pending: "bg-[#FFF4DE] text-[#936A1D]",
-  "In Progress": "bg-[#EAF0FA] text-[#46658A]",
+  Approved: "bg-[#EAF0FA] text-[#46658A]",
+  "In Production": "bg-[#EAF0FA] text-[#46658A]",
   Ready: "bg-[#E9F5EC] text-[#367347]",
   Delivered: "bg-[#E9F5EC] text-[#367347]",
   Cancelled: "bg-[#FDECEC] text-[#A34B4B]",
 };
 
 const Orders = () => {
-    const navigate = useNavigate();
-    
+  const navigate = useNavigate();
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const loadOrders = async () => {
+    setLoading(true);
+    setLoadError(null);
+
+    try {
+      const response = await api.get("/customer-orders");
+      setOrders((response.data?.data ?? []).map(fromApi));
+    } catch (error) {
+      setLoadError(
+        error.response?.data?.message || error.message || "Could not load orders"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const visibleOrders = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return orders.filter((order) => {
+      const matchesSearch =
+        !query ||
+        (order.orderId ?? "").toLowerCase().includes(query) ||
+        (order.customer ?? "").toLowerCase().includes(query);
+
+      const matchesStatus = !statusFilter || order.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, search, statusFilter]);
+
+  /**
+   * Cancel and Deliver are the two status changes with their own endpoints
+   * (PATCH /customer-orders/:id/cancel and /deliver). Both write a row to
+   * order_status_history, so the order keeps an audit trail of how it moved.
+   *
+   * The screens at /orders/cancel and /orders/delivery are still forms with no
+   * order to act on, so the action happens from the row itself where the order
+   * is already identified.
+   */
+  const changeStatus = async (order, action) => {
+    const verb = action === "cancel" ? "Cancel" : "Mark delivered";
+
+    if (!window.confirm(`${verb} order ${order.orderId}?`)) return;
+
+    try {
+      await api.patch(`/customer-orders/${order.id}/${action}`, {
+        remarks: `${verb} from the orders list`,
+      });
+
+      toast.success(action === "cancel" ? "Order cancelled" : "Order delivered");
+      await loadOrders();
+    } catch (error) {
+      // The service refuses to deliver a cancelled order, or cancel one that
+      // is already cancelled, with a clear message worth showing as-is.
+      toast.error(
+        error.response?.data?.message || `Could not ${verb.toLowerCase()} the order`
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -124,6 +185,8 @@ const Orders = () => {
 
             <input
               type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search order ID or customer..."
               className="h-11 w-full rounded-xl border border-[#E2D8CE] bg-[#FCFAF8] pl-10 pr-4 text-sm text-[#2B2622] outline-none transition focus:border-[#8B5E3C] focus:ring-2 focus:ring-[#8B5E3C]/10"
             />
@@ -131,26 +194,32 @@ const Orders = () => {
           </div>
 
 
-          {/* STATUS */}
+          {/* STATUS — the six real order_status values */}
 
           <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
             className="h-11 rounded-xl border border-[#E2D8CE] bg-[#FCFAF8] px-4 text-sm text-[#2B2622] outline-none focus:border-[#8B5E3C]"
           >
             <option value="">All Statuses</option>
             <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
+            <option value="Approved">Approved</option>
+            <option value="In Production">In Production</option>
             <option value="Ready">Ready</option>
             <option value="Delivered">Delivered</option>
             <option value="Cancelled">Cancelled</option>
           </select>
 
 
-          {/* DATE */}
-
-          <input
-            type="date"
-            className="h-11 rounded-xl border border-[#E2D8CE] bg-[#FCFAF8] px-4 text-sm text-[#2B2622] outline-none focus:border-[#8B5E3C]"
-          />
+          <button
+            type="button"
+            onClick={loadOrders}
+            disabled={loading}
+            className="flex h-11 items-center gap-2 rounded-xl border border-[#E2D8CE] bg-white px-4 text-sm font-medium text-[#5F554D] transition hover:bg-[#F7F3EE] disabled:opacity-50"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
 
         </div>
 
@@ -204,10 +273,49 @@ const Orders = () => {
 
             <tbody className="divide-y divide-[#F0E8E0]">
 
-              {ordersData.map((order) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="py-14 text-center text-sm text-[#9B8E83]">
+                    Loading orders…
+                  </td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan="7">
+                    <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                      <AlertCircle size={22} className="text-[#A33A2B]" />
+                      <p className="text-sm font-medium text-[#A33A2B]">
+                        Could not load orders
+                      </p>
+                      <p className="text-xs text-[#8A5049]">{loadError}</p>
+                      <button
+                        type="button"
+                        onClick={loadOrders}
+                        className="mt-2 rounded-lg border border-[#E7DED3] px-4 py-2 text-xs font-medium text-[#5F554D] hover:bg-[#F7F3EE]"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : visibleOrders.length === 0 ? (
+                <tr>
+                  <td colSpan="7">
+                    <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                      <ShoppingCart size={22} className="text-[#8B5E3C]" />
+                      <p className="text-sm font-medium text-[#665C54]">
+                        {orders.length === 0
+                          ? "No customer orders yet"
+                          : "No orders match your search"}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                visibleOrders.map((order) => (
 
                 <tr
-                  key={order.orderId}
+                  key={order.id}
                   className="transition hover:bg-[#FCFAF8]"
                 >
 
@@ -281,38 +389,56 @@ const Orders = () => {
 
                       {/* UPDATE */}
 
-                   <button
-  type="button"
-  title="Update Order"
-  onClick={() => navigate("/orders/update")}
-  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2D8CE] text-[#6F5D50] transition hover:bg-[#F7F3EE]"
->
-  <Pencil size={16} />
-</button>
+                      <button
+                        type="button"
+                        title="Update order"
+                        onClick={() => navigate(`/orders/update?order=${order.id}`)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2D8CE] text-[#6F5D50] transition hover:bg-[#F7F3EE]"
+                      >
+                        <Pencil size={16} />
+                      </button>
 
 
-                      {/* DELIVERY */}
+                      {/* DELIVERY — disabled once the order is finished */}
 
-                     <button
-  type="button"
-  title="Delivery"
-  onClick={() => navigate("/orders/delivery")}
-  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2D8CE] text-[#6F5D50] transition hover:bg-[#F7F3EE]"
->
-  <Truck size={16} />
-</button>
+                      <button
+                        type="button"
+                        title={
+                          order.status === "Delivered"
+                            ? "Already delivered"
+                            : order.status === "Cancelled"
+                            ? "A cancelled order cannot be delivered"
+                            : "Mark delivered"
+                        }
+                        disabled={
+                          order.status === "Delivered" || order.status === "Cancelled"
+                        }
+                        onClick={() => changeStatus(order, "deliver")}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2D8CE] text-[#6F5D50] transition hover:bg-[#F7F3EE] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <Truck size={16} />
+                      </button>
 
 
                       {/* CANCEL */}
 
                       <button
-  type="button"
-  title="Cancel Order"
-  onClick={() => navigate("/orders/cancel")}
-  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E8D4D4] text-[#A34B4B] transition hover:bg-[#FDECEC]"
->
-  <XCircle size={16} />
-</button>
+                        type="button"
+                        title={
+                          order.status === "Cancelled"
+                            ? "Already cancelled"
+                            : order.status === "Delivered"
+                            ? "A delivered order cannot be cancelled"
+                            : "Cancel order"
+                        }
+                        disabled={
+                          order.status === "Cancelled" || order.status === "Delivered"
+                        }
+                        onClick={() => changeStatus(order, "cancel")}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E8D4D4] text-[#A34B4B] transition hover:bg-[#FDECEC] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <XCircle size={16} />
+                      </button>
 
                     </div>
 
@@ -320,7 +446,8 @@ const Orders = () => {
 
                 </tr>
 
-              ))}
+                ))
+              )}
 
             </tbody>
 

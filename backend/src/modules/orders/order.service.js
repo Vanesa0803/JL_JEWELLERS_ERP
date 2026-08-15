@@ -227,6 +227,26 @@ const cancelOrder = async (orderId, remarks) => {
 
                 }
 
+                /*
+                 * A delivered order cannot be cancelled.
+                 *
+                 * deliverOrder already refused to deliver a cancelled order,
+                 * but this direction was unguarded — so an order could be
+                 * delivered and then cancelled, leaving the shop with the
+                 * goods gone and the order marked Cancelled. The customer has
+                 * the jewellery; the record says the sale never happened.
+                 *
+                 * Returning goods is a different operation with its own status
+                 * ('Returned' exists on bills), not a cancellation.
+                 */
+                if (current.order_status === "Delivered") {
+
+                    throw new Error(
+                        "Order has already been delivered and cannot be cancelled"
+                    );
+
+                }
+
                 await customerOrderModel.updateOrderStatus(
 
                     orderId,
