@@ -700,6 +700,74 @@ alias.
 
 ---
 
+## 2.3 — Billing: the screen and the server now agree on the money
+
+**The issue**
+`CreateBill.jsx` carried four faults, and together they meant the billing screen could not
+have produced a correct bill:
+
+1. **Every total showed ₹0.00.** The calculator read `item.netWeight` and
+   `item.makingPercent`, but the form writes `net_weight` and `making_charge_percent`. Both
+   were always zero, so no matter what was typed in, the screen showed nothing.
+2. **The same wrong names were sent to the server**, so the saved bill was built from
+   blanks too.
+3. **GST was a flat 3%** on everything. Gold jewellery is 3% on the metal and 5% on the
+   making charge — two rates, which the server already did correctly.
+4. **Discount was applied before tax** on screen and after tax on the server.
+
+**What we did**
+Rewrote the screen's calculation to mirror `billing.calculator.js` step for step, and fixed
+the payload field names. The screen now only sends raw inputs — quantity, weight, rate,
+making percentage, discount — and the **server recalculates every figure itself**. That is
+the right division: the browser must never decide what a customer is charged.
+
+---
+
+### And that comparison found a real revenue bug — `S2-3`
+
+With both sides finally computing the same thing, they still disagreed:
+
+```
+                  SCREEN        SERVER
+subtotal       116,320.00     60,320.00
+total GST        3,736.00      1,936.00
+grand total    118,556.00     60,756.00
+```
+
+The gap was exactly the quantity. **`billing.calculator.js` computed `net_weight × rate`
+and ignored `quantity` completely** — it accepted the field, returned it in the result, and
+never once multiplied by it. A line for two identical rings was charged as one.
+
+This was in the very first audit as a suspicion. It is now proven: a two-line bill was
+being stored at roughly **half** its correct value.
+
+What makes it worth dwelling on is *why it survived*. The arithmetic looks entirely
+reasonable — metal value, making charge, taxable value, GST, total, all correct in
+isolation. Nothing about the output hints that a quantity was dropped. It took a **second
+implementation disagreeing** to expose it.
+
+After the fix:
+
+```
+                  SCREEN        SERVER
+subtotal       116,320.00    116,320.00    match
+total GST        3,736.00      3,736.00    match
+grand total    118,556.00    118,556.00    match
+```
+
+**Remarks — two things left open on purpose**
+
+- **Discount timing is a tax question, not a coding one.** The screen now matches the
+  server (discount after GST). Under GST rules a trade discount shown on the invoice is
+  normally deducted *before* tax, which would make both wrong together. Worth confirming
+  with your accountant — and it is a one-line change in two files once decided.
+- **`customer_id` and `employee_id` are still hardcoded to 1.** The screen has no customer
+  picker yet. `employee_id` is worse than an oversight: a bill references `employees`, the
+  logged-in user is a row in `users`, and **nothing links the two tables** — so "who made
+  this sale" cannot currently be answered. That is a schema gap.
+
+---
+
 ## How to run it now
 
 ```bash

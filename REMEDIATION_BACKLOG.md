@@ -91,7 +91,7 @@ Combined effort: ~16 days.*
 |:--:|---|:--:|:--:|---|---|
 | **S2-1** | Fix attendance table name (`attendance` → `employee_attendance`) | BE-HR | XS | All 3 handlers in `attendanceController.js` | **Reported ✅ Completed; has never executed** |
 | **S2-2** | Fix `employees.department_id` (schema has `department` varchar) | BE-HR | S | `employeeController.js` insert + LEFT JOIN | Employee create and list both 500 |
-| **S2-3** | Multiply `quantity` into the bill line total | BE-FIN | XS | `billingCalculator.js` returns `quantity` but never multiplies by it | **Every multi-quantity bill undercharges.** Direct revenue loss |
+| ~~**S2-3**~~ | ~~Multiply `quantity` into the bill line total~~ **FIXED 2026-08-15** | BE-FIN | — | `billing.calculator.js` computed `net_weight * rate` and ignored quantity entirely. **Proven, not inferred:** the billing screen and the server were made to calculate the same two lines — the screen said ₹1,16,320 and the server stored ₹60,320. The difference was exactly the dropped quantity. Now `net_weight * rate * quantity`, and the two agree to the paisa | Was undercharging every multi-quantity line on every bill, silently. Found only because a second implementation existed to disagree with it |
 | **S2-4** | Implement `invoiceGenerator.js` (0 bytes) | BE-FIN | M | `GET /bills/:id/print` currently returns JSON | "Print Invoice ✅" produces no printable invoice |
 | **S2-5** | Implement `errorHandler.js` (0 bytes) and mount it | BE-FIN | S | Never mounted on `src/app.js`; INV branch has a working one to copy | Raw stack traces and DB errors leak to clients |
 | **S2-6** | Implement `validate.js` (0 bytes) + add a validation library | BE-FIN | M | No validation anywhere in the project | Malformed payloads reach SQL directly |

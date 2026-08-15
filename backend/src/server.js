@@ -1,7 +1,7 @@
 /**
  * Server entry point.
  *
- * Environment loading lives inside config/db.cjs rather than here. In ESM,
+ * Environment loading lives inside config/db.js rather than here. In ESM,
  * `import` statements are hoisted and run before any code in this file, so
  * calling dotenv here would happen AFTER the database module had already read
  * process.env and found it empty.

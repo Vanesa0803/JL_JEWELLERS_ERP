@@ -9,9 +9,22 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import api from "../../api/axios";
+import { toast } from "react-hot-toast";
 
-const GST_PERCENT = 3;
+// services/api, not api/axios: this is the instance that attaches the auth
+// token and targets /api/v1. See S3-9 — the two should be merged.
+import api from "../../services/api";
+
+/*
+ * GST on gold jewellery: 3% on the metal, 5% on the making charge.
+ *
+ * These are hardcoded here and again in the backend calculator, while a
+ * `gst_rates` table sits unused and `financial_settings` now holds
+ * default_gst_metal and default_gst_making. A rate change currently means a
+ * code change in two places — see S1-9 in REMEDIATION_BACKLOG.md.
+ */
+const GST_METAL_PERCENT = 3;
+const GST_MAKING_PERCENT = 5;
 
 const CreateBill = () => {
   const [items, setItems] = useState([]);
@@ -72,59 +85,61 @@ const CreateBill = () => {
    * ============================
    */
 
+  /*
+   * Calculate one line.
+   *
+   * This deliberately mirrors backend/src/modules/billing/billing.calculator.js
+   * step for step. The two used to disagree, which is the worst possible kind
+   * of bug in a billing screen: the customer is shown one total and a different
+   * one is saved against their name.
+   *
+   * Three faults were fixed here:
+   *
+   *  1. It read item.netWeight and item.makingPercent, but the form writes
+   *     net_weight and making_charge_percent. Both were therefore always 0, so
+   *     EVERY total on this screen rendered as ₹0.00 regardless of what was
+   *     typed in.
+   *
+   *  2. GST was a flat 3% on the whole taxable value. Gold jewellery is taxed
+   *     at 3% on the metal and 5% on the making charge — two different rates,
+   *     as the backend already did.
+   *
+   *  3. Discount was subtracted BEFORE tax here and AFTER tax on the server,
+   *     so the two produced different grand totals. Now matched to the server.
+   *     See the note below: which of the two is correct is a tax question, not
+   *     a coding one.
+   */
   const calculateItem = (item) => {
     const quantity = Number(item.quantity) || 0;
-    const weight = Number(item.netWeight) || 0;
+    const weight = Number(item.net_weight) || 0;
     const rate = Number(item.rate) || 0;
-    const makingPercent =
-      Number(item.makingPercent) || 0;
+    const makingPercent = Number(item.making_charge_percent) || 0;
     const discount = Number(item.discount) || 0;
 
-    /*
-     * Metal Value
-     *
-     * Weight × Rate × Quantity
-     */
-    const metalValue =
-      weight * rate * quantity;
+    /* Metal value — weight × rate × quantity */
+    const metalValue = weight * rate * quantity;
 
-    /*
-     * Making Charge
-     *
-     * Metal Value × Making %
-     */
-    const makingCharge =
-      metalValue * (makingPercent / 100);
+    /* Making charge — a percentage of the metal value */
+    const makingCharge = metalValue * (makingPercent / 100);
 
-    /*
-     * Taxable Value
-     *
-     * Metal Value
-     * + Making Charge
-     * - Discount
-     */
-    const taxableValue = Math.max(
-      0,
-      metalValue + makingCharge - discount
-    );
+    /* Taxable value, before discount (matching the server) */
+    const taxableValue = metalValue + makingCharge;
 
-    /*
-     * GST
-     */
-    const gst =
-      taxableValue * (GST_PERCENT / 100);
+    /* GST — 3% on metal, 5% on making charges */
+    const gstMetal = metalValue * (GST_METAL_PERCENT / 100);
+    const gstMaking = makingCharge * (GST_MAKING_PERCENT / 100);
+    const gst = gstMetal + gstMaking;
 
-    /*
-     * Final line total
-     */
-    const total =
-      taxableValue + gst;
+    /* Line total — discount comes off after tax, as the server does it */
+    const total = Math.max(0, taxableValue + gst - discount);
 
     return {
       metalValue,
       makingCharge,
       discount,
       taxableValue,
+      gstMetal,
+      gstMaking,
       gst,
       total,
     };
@@ -457,37 +472,60 @@ const CreateBill = () => {
       return;
     }
 
-    // For now, employee_id is temporary until we connect logged-in user data
+    /*
+     * Only the raw inputs are sent. The server recalculates every figure
+     * itself (bill.service.js -> billing.calculator.js) and stores what IT
+     * computes, which is correct: the money must not be decided by the
+     * browser. The totals shown on this screen are for the operator's benefit
+     * and are checked against the server's response below.
+     *
+     * STILL HARDCODED, and both need a real source:
+     *   customer_id — this screen has no customer picker yet, so every bill is
+     *                 raised against customer 1.
+     *   employee_id — the logged-in user is a row in `users`, while a bill
+     *                 references `employees`. There is no link between the two
+     *                 tables, so "who made this sale" cannot be answered yet.
+     *                 That is a schema question, not an oversight here.
+     */
     const employeeId = 1;
 
     const payload = {
-      customer_id: 1, // TEMPORARY: replace with selected customer ID
+      customer_id: 1,
       employee_id: employeeId,
       payment_status: paymentStatus,
       items: items.map((item) => ({
-        product: item.product,
-        quantity: Number(item.quantity),
-        net_weight: Number(item.netWeight),
-        rate: Number(item.rate),
-        making_charge_percent: Number(item.makingPercent),
+        product_id: Number(item.product_id) || null,
+        metal_type: item.metal_type,
+        purity: item.purity,
+        quantity: Number(item.quantity) || 1,
+        net_weight: Number(item.net_weight) || 0,
+        rate: Number(item.rate) || 0,
+        making_charge_percent: Number(item.making_charge_percent) || 0,
         discount: Number(item.discount) || 0,
       })),
     };
 
-    console.log("CREATE BILL PAYLOAD:", payload);
-
     const response = await api.post("/bills", payload);
 
-    console.log("CREATE BILL RESPONSE:", response.data);
+    const saved = response.data?.data ?? response.data;
 
-    alert("Bill created successfully.");
+    toast.success(
+      saved?.invoice_number
+        ? `Bill ${saved.invoice_number} created`
+        : "Bill created"
+    );
+
+    // Start a fresh bill rather than leaving the old lines on screen, which
+    // is how the same items get billed twice.
+    setItems([]);
+    setPaymentAmount("");
+    setPaymentStatus("Pending");
 
   } catch (error) {
-    console.error("CREATE BILL ERROR:", error);
-
-    alert(
+    toast.error(
       error.response?.data?.message ||
-      "Failed to create bill."
+      error.message ||
+      "Could not create the bill"
     );
   }
 };
@@ -1015,7 +1053,7 @@ const CreateBill = () => {
             <div className="flex items-center justify-between text-sm">
 
               <span className="text-[#85786D]">
-                GST ({GST_PERCENT}%)
+                GST ({GST_METAL_PERCENT}% metal + {GST_MAKING_PERCENT}% making)
               </span>
 
               <span className="font-medium text-[#2B2622]">

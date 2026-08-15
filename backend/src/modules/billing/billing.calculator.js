@@ -10,7 +10,25 @@
  */
 
 /**
- * Calculate one bill item
+ * Calculate one bill item.
+ *
+ * S2-3 — QUANTITY WAS BEING IGNORED
+ * ---------------------------------
+ * `quantity` was accepted, returned in the result, and never used in a single
+ * calculation. The metal value was `net_weight * rate`, so a line for two
+ * identical rings was charged as one.
+ *
+ * That undercharged every multi-quantity line on every bill, silently — the
+ * arithmetic looks perfectly reasonable unless you multiply it out by hand,
+ * and nothing in the totals hints that a quantity was dropped.
+ *
+ * `net_weight` is the weight of ONE piece, which is how a jeweller records it,
+ * so the line weight is net_weight × quantity.
+ *
+ * Found by making the billing screen calculate the same figures and comparing:
+ * the screen said ₹1,16,320 and the server stored ₹60,320 for the same two
+ * lines. Neither was wrong about its own arithmetic; they disagreed about
+ * whether quantity counts.
  */
 const calculateBillItem = ({
     quantity = 1,
@@ -20,9 +38,11 @@ const calculateBillItem = ({
     discount = 0
 }) => {
 
-    // Step 1
+    const line_quantity = Number(quantity) || 1;
+
+    // Step 1 — weight of one piece × rate × how many pieces
     const metal_value = Number(
-        (net_weight * rate).toFixed(2)
+        (net_weight * rate * line_quantity).toFixed(2)
     );
 
     // Step 2
@@ -57,7 +77,7 @@ const calculateBillItem = ({
 
     return {
 
-        quantity,
+        quantity: line_quantity,
 
         net_weight,
 
