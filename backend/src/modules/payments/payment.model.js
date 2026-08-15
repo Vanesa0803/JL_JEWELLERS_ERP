@@ -658,10 +658,14 @@ const getPaymentHistory = (filters) => {
                 p.payment_id,
                 p.bill_id,
                 -- The customer comes from the bill. There is no
-                -- payments.customer_id column: the original COALESCE over
-                -- p.customer_id assumed one existed, which made this whole
-                -- query fail with "Unknown column 'p.customer_id'". (S2-15)
-                b.customer_id,
+                -- Bill payments get their customer from the bill; ADVANCE
+                -- payments have no bill and carry the customer directly.
+                --
+                -- This was briefly the bill's customer alone, which was right
+                -- at the time (S2-15: payments.customer_id did not exist) but
+                -- became wrong once migration 2026-08-13_01 added the column
+                -- for advances. Every advance then showed a blank customer.
+                COALESCE(p.customer_id, b.customer_id) AS customer_id,
                 p.payment_date,
                 p.total_amount,
                 p.payment_status,
@@ -686,7 +690,7 @@ const getPaymentHistory = (filters) => {
                 ON p.bill_id = b.bill_id
 
             LEFT JOIN customers c
-                ON b.customer_id = c.customer_id
+                ON COALESCE(p.customer_id, b.customer_id) = c.customer_id
 
             WHERE 1=1
         `;
@@ -709,7 +713,7 @@ const getPaymentHistory = (filters) => {
 
         if (filters.customer_id) {
 
-            query += " AND b.customer_id = ?";
+            query += " AND COALESCE(p.customer_id, b.customer_id) = ?";
             values.push(filters.customer_id);
 
         }
@@ -813,9 +817,10 @@ const getPaymentReceipt = (paymentId) => {
             LEFT JOIN bills b
                 ON p.bill_id = b.bill_id
 
-            -- via the bill: payments has no customer_id column (S2-15)
+            -- Advances carry the customer directly; bill payments get it from
+            -- the bill. See the note in getPaymentHistory.
             LEFT JOIN customers c
-                ON b.customer_id = c.customer_id
+                ON COALESCE(p.customer_id, b.customer_id) = c.customer_id
 
             LEFT JOIN payment_details pd
                 ON p.payment_id = pd.payment_id

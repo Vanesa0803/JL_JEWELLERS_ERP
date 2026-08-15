@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Banknote,
@@ -10,55 +10,14 @@ import {
   ChevronDown,
   Eye,
   Plus,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
-const paymentData = [
-  {
-    id: "PAY-00021",
-    invoice: "INV-00124",
-    customer: "Rahul Sharma",
-    date: "08 Aug 2026",
-    amount: 50000,
-    method: "UPI",
-    status: "Completed",
-  },
-  {
-    id: "PAY-00020",
-    invoice: "INV-00123",
-    customer: "Priya Singh",
-    date: "08 Aug 2026",
-    amount: 85000,
-    method: "Cash",
-    status: "Completed",
-  },
-  {
-    id: "PAY-00019",
-    invoice: "INV-00122",
-    customer: "Amit Kumar",
-    date: "07 Aug 2026",
-    amount: 25000,
-    method: "Card",
-    status: "Partial",
-  },
-  {
-    id: "PAY-00018",
-    invoice: "INV-00121",
-    customer: "Neha Verma",
-    date: "07 Aug 2026",
-    amount: 112000,
-    method: "Bank Transfer",
-    status: "Completed",
-  },
-  {
-    id: "PAY-00017",
-    invoice: "INV-00120",
-    customer: "Karan Mehta",
-    date: "06 Aug 2026",
-    amount: 35000,
-    method: "Cash",
-    status: "Pending",
-  },
-];
+import api from "../../services/api";
+import { shortDate } from "../../lib/format";
+
+
 
 const formatCurrency = (amount) => {
   return `₹${amount.toLocaleString("en-IN", {
@@ -76,42 +35,105 @@ const getMethodIcon = (method) => {
   return IndianRupee;
 };
 
+/**
+ * Maps a payment from GET /payments/history onto the shape this page uses.
+ *
+ * `amount` comes from payment_details (what was taken by this method) and
+ * falls back to total_amount. A mixed payment produces one row per method, so
+ * the two differ — a ₹50,000 bill settled ₹30,000 cash and ₹20,000 card is
+ * two rows of 30,000 and 20,000, both against total_amount 50,000.
+ */
+const fromApi = (payment) => ({
+  id: `PAY-${String(payment.payment_id).padStart(5, "0")}`,
+  paymentId: payment.payment_id,
+  invoice: payment.invoice_number || (payment.payment_type === "Advance" ? "Advance" : "—"),
+  customer:
+    [payment.first_name, payment.last_name].filter(Boolean).join(" ") || "—",
+  date: shortDate(payment.payment_date),
+  rawDate: payment.payment_date,
+  amount: Number(payment.amount ?? payment.total_amount ?? 0),
+  method: payment.payment_method || "—",
+  status: payment.payment_status,
+  type: payment.payment_type,
+});
+
 const Payments = () => {
   const [search, setSearch] = useState("");
   const [methodFilter, setMethodFilter] = useState("All Methods");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const loadPayments = async () => {
+    setLoading(true);
+    setLoadError(null);
+
+    try {
+      const response = await api.get("/payments/history");
+      setPayments((response.data?.data ?? []).map(fromApi));
+    } catch (error) {
+      setLoadError(
+        error.response?.data?.message || error.message || "Could not load payments"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPayments();
+  }, []);
+
   const filteredPayments = useMemo(() => {
-    return paymentData.filter((payment) => {
+    return payments.filter((payment) => {
+      const query = search.toLowerCase();
+
       const matchesSearch =
-        payment.id.toLowerCase().includes(search.toLowerCase()) ||
-        payment.invoice.toLowerCase().includes(search.toLowerCase()) ||
-        payment.customer.toLowerCase().includes(search.toLowerCase());
+        !query ||
+        payment.id.toLowerCase().includes(query) ||
+        payment.invoice.toLowerCase().includes(query) ||
+        payment.customer.toLowerCase().includes(query);
 
       const matchesMethod =
-        methodFilter === "All Methods" ||
-        payment.method === methodFilter;
+        methodFilter === "All Methods" || payment.method === methodFilter;
 
       const matchesStatus =
-        statusFilter === "All Status" ||
-        payment.status === statusFilter;
+        statusFilter === "All Status" || payment.status === statusFilter;
 
       return matchesSearch && matchesMethod && matchesStatus;
     });
-  }, [search, methodFilter, statusFilter]);
+  }, [payments, search, methodFilter, statusFilter]);
 
-  const totalReceived = paymentData
+  const totalReceived = payments
     .filter((payment) => payment.status === "Completed")
     .reduce((sum, payment) => sum + payment.amount, 0);
 
-  const pendingAmount = paymentData
+  const pendingAmount = payments
     .filter((payment) => payment.status === "Pending")
     .reduce((sum, payment) => sum + payment.amount, 0);
 
-  const todayPayments = paymentData
-    .filter((payment) => payment.date === "08 Aug 2026")
+  // Today, actually today — the mock compared against a hardcoded date string,
+  // so this tile would have frozen on 08 Aug 2026 forever.
+  const startOfToday = new Date().setHours(0, 0, 0, 0);
+
+  const todayPayments = payments
+    .filter((payment) => new Date(payment.rawDate).getTime() >= startOfToday)
     .reduce((sum, payment) => sum + payment.amount, 0);
+
+  const totalByMethod = useMemo(() => {
+    const totals = { Cash: 0, UPI: 0, Card: 0, "Bank Transfer": 0 };
+
+    for (const payment of payments) {
+      if (payment.method in totals) {
+        totals[payment.method] += payment.amount;
+      }
+    }
+
+    return totals;
+  }, [payments]);
 
   return (
     <div className="space-y-6">
@@ -164,7 +186,7 @@ const Payments = () => {
 
         <SummaryCard
           title="Total Transactions"
-          value={paymentData.length}
+          value={loading ? "…" : payments.length}
           subtitle="Payment records"
           icon={CreditCard}
         />
@@ -186,28 +208,32 @@ const Payments = () => {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
+          {/*
+            Totals per method, summed from the same records the table shows.
+            These were four hardcoded rupee figures that never moved.
+          */}
           <MethodCard
             icon={Banknote}
             title="Cash"
-            value="₹1,20,000"
+            value={loading ? "…" : formatCurrency(totalByMethod.Cash)}
           />
 
           <MethodCard
             icon={Smartphone}
             title="UPI"
-            value="₹50,000"
+            value={loading ? "…" : formatCurrency(totalByMethod.UPI)}
           />
 
           <MethodCard
             icon={CreditCard}
             title="Card"
-            value="₹25,000"
+            value={loading ? "…" : formatCurrency(totalByMethod.Card)}
           />
 
           <MethodCard
             icon={WalletCards}
             title="Bank Transfer"
-            value="₹1,12,000"
+            value={loading ? "…" : formatCurrency(totalByMethod["Bank Transfer"])}
           />
 
         </div>
@@ -335,7 +361,36 @@ const Payments = () => {
 
             <tbody>
 
-              {filteredPayments.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="py-14 text-center text-sm text-[#9B8E83]">
+                    Loading payments…
+                  </td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan="8">
+                    <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                      <AlertCircle size={22} className="text-[#A33A2B]" />
+
+                      <p className="text-sm font-medium text-[#A33A2B]">
+                        Could not load payments
+                      </p>
+
+                      <p className="text-xs text-[#8A5049]">{loadError}</p>
+
+                      <button
+                        type="button"
+                        onClick={loadPayments}
+                        className="mt-2 flex items-center gap-2 rounded-lg border border-[#E7DED3] px-4 py-2 text-xs font-medium text-[#5F554D] hover:bg-[#F7F3EE]"
+                      >
+                        <RefreshCw size={13} />
+                        Try again
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredPayments.length === 0 ? (
                 <tr>
                   <td colSpan="8">
                     <div className="flex flex-col items-center justify-center py-14 text-center">
@@ -348,11 +403,15 @@ const Payments = () => {
                       </div>
 
                       <p className="text-sm font-medium text-[#665C54]">
-                        No payments found
+                        {payments.length === 0
+                          ? "No payments recorded yet"
+                          : "No payments found"}
                       </p>
 
                       <p className="mt-1 text-xs text-[#9B8E83]">
-                        Try changing your search or filters.
+                        {payments.length === 0
+                          ? "Payments appear here once a bill is settled."
+                          : "Try changing your search or filters."}
                       </p>
 
                     </div>

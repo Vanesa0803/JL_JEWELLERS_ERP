@@ -195,18 +195,34 @@ const getAllBills = () => {
 
     return new Promise((resolve, reject) => {
 
+        /*
+         * Deleted bills must not appear in the list.
+         *
+         * This read from `invoice_summary` alone, and that view carries no
+         * deleted_at column — so every soft-deleted bill came back with the
+         * live ones. Measured before the fix: 22 rows returned for 15 live
+         * bills. Cancelling a bill left it sitting in the list as though
+         * nothing had happened.
+         *
+         * getBillById already joined `bills` for exactly this check, so the
+         * detail view and the list disagreed about whether a bill existed.
+         * The join brings the list into line.
+         */
         const query = `
             SELECT
-                bill_id,
-                invoice_number,
-                bill_date,
-                customer_name,
-                employee_name,
-                grand_total,
-                payment_status,
-                bill_status
-            FROM invoice_summary
-            ORDER BY bill_date DESC;
+                s.bill_id,
+                s.invoice_number,
+                s.bill_date,
+                s.customer_name,
+                s.employee_name,
+                s.grand_total,
+                s.payment_status,
+                s.bill_status
+            FROM invoice_summary s
+            INNER JOIN bills b
+                ON s.bill_id = b.bill_id
+            WHERE b.deleted_at IS NULL
+            ORDER BY s.bill_date DESC;
         `;
 
         connection.query(query, (err, results) => {
