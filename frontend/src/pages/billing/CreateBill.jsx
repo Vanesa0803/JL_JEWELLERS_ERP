@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 
 import {
@@ -28,6 +28,60 @@ const GST_MAKING_PERCENT = 5;
 
 const CreateBill = () => {
   const [items, setItems] = useState([]);
+
+  /* ============================
+   * CUSTOMER SELECTION
+   * ============================ */
+
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerResults, setCustomerResults] = useState([]);
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+  /*
+   * Debounced customer search.
+   *
+   * Waits 300ms after the last keystroke before asking the server, and skips
+   * anything under two characters. Without the delay this fires one request
+   * per character typed — eleven requests to find "Rahul Sharma", ten of which
+   * are thrown away before they return.
+   *
+   * The server does the searching (it matches on first name, last name, mobile
+   * and customer code), so this stays correct as the customer list grows.
+   */
+  useEffect(() => {
+    const query = customerQuery.trim();
+
+    if (query.length < 2) {
+      setCustomerResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchingCustomers(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await api.get("/customers", {
+          params: { search: query, limit: 8, status: "Active" },
+        });
+
+        if (!cancelled) {
+          setCustomerResults(response.data?.data?.customers ?? []);
+        }
+      } catch {
+        if (!cancelled) setCustomerResults([]);
+      } finally {
+        if (!cancelled) setSearchingCustomers(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [customerQuery]);
 
   const [paymentAmount, setPaymentAmount] = useState("");
 
@@ -290,9 +344,62 @@ const CreateBill = () => {
 
           <input
             type="text"
+            value={customerQuery}
+            onChange={(event) => {
+              setCustomerQuery(event.target.value);
+              setShowCustomerResults(true);
+            }}
+            onFocus={() => setShowCustomerResults(true)}
             placeholder="Search customer by name, mobile or customer ID..."
             className="h-12 w-full rounded-xl border border-[#DED4CA] bg-[#FCFAF8] pl-11 pr-4 text-sm text-[#2B2622] outline-none transition placeholder:text-[#A4978D] focus:border-[#B8860B] focus:bg-white"
           />
+
+          {/*
+            Results appear under the box. The search is debounced by 300ms in
+            the effect above — firing a request on every keystroke would put
+            one request per character on the server for no benefit.
+          */}
+          {showCustomerResults && customerQuery.trim().length >= 2 && (
+            <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-[#DED4CA] bg-white shadow-lg">
+
+              {searchingCustomers ? (
+                <p className="px-4 py-3 text-sm text-[#9B8E83]">Searching…</p>
+              ) : customerResults.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-[#9B8E83]">
+                  No customer matches “{customerQuery}”.
+                </p>
+              ) : (
+                customerResults.map((customer) => (
+                  <button
+                    key={customer.customer_id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(customer);
+                      setCustomerQuery("");
+                      setShowCustomerResults(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-3 border-b border-[#F1EBE5] px-4 py-3 text-left last:border-0 hover:bg-[#F7F3EE]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[#2B2622]">
+                        {[customer.first_name, customer.last_name].filter(Boolean).join(" ")}
+                      </p>
+                      <p className="text-xs text-[#9B8E83]">
+                        {customer.mobile} · {customer.customer_code}
+                      </p>
+                    </div>
+
+                    {customer.customer_type !== "Regular" && (
+                      <span className="shrink-0 rounded-full bg-[#F5EBD9] px-2 py-0.5 text-xs font-medium text-[#8A6A1F]">
+                        {customer.customer_type}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+
+            </div>
+          )}
 
         </div>
 
@@ -308,7 +415,11 @@ const CreateBill = () => {
             </p>
 
             <p className="mt-1 text-sm font-medium text-[#2B2622]">
-              —
+              {selectedCustomer
+                ? [selectedCustomer.first_name, selectedCustomer.last_name]
+                    .filter(Boolean)
+                    .join(" ")
+                : "—"}
             </p>
 
           </div>
@@ -321,7 +432,7 @@ const CreateBill = () => {
             </p>
 
             <p className="mt-1 text-sm font-medium text-[#2B2622]">
-              —
+              {selectedCustomer?.mobile ?? "—"}
             </p>
 
           </div>
@@ -333,8 +444,18 @@ const CreateBill = () => {
               Customer ID
             </p>
 
-            <p className="mt-1 text-sm font-medium text-[#2B2622]">
-              —
+            <p className="mt-1 flex items-center gap-2 text-sm font-medium text-[#2B2622]">
+              {selectedCustomer?.customer_code ?? "—"}
+
+              {selectedCustomer && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomer(null)}
+                  className="text-xs font-medium text-[#8A6A1F] underline"
+                >
+                  change
+                </button>
+              )}
             </p>
 
           </div>
@@ -467,10 +588,21 @@ const CreateBill = () => {
                   const handleCreateBill = async () => {
   try {
     // Basic validation
-    if (items.length === 0) {
-      alert("Please add at least one item.");
+    if (!selectedCustomer) {
+      toast.error("Choose a customer before creating the bill");
       return;
     }
+
+    if (items.length === 0) {
+      toast.error("Add at least one item");
+      return;
+    }
+
+    /*
+     * The server rejects an empty bill with a 500 rather than a 400, so it is
+     * worth catching both of these here — but the checks are a courtesy, not
+     * the guard. The server refuses regardless.
+     */
 
     /*
      * Only the raw inputs are sent. The server recalculates every figure
@@ -479,18 +611,16 @@ const CreateBill = () => {
      * browser. The totals shown on this screen are for the operator's benefit
      * and are checked against the server's response below.
      *
-     * STILL HARDCODED, and both need a real source:
-     *   customer_id — this screen has no customer picker yet, so every bill is
-     *                 raised against customer 1.
+     * STILL HARDCODED:
      *   employee_id — the logged-in user is a row in `users`, while a bill
-     *                 references `employees`. There is no link between the two
-     *                 tables, so "who made this sale" cannot be answered yet.
-     *                 That is a schema question, not an oversight here.
+     *                 references `employees`. Nothing links the two tables, so
+     *                 "who made this sale" cannot be answered yet. That is a
+     *                 schema gap, not an oversight here.
      */
     const employeeId = 1;
 
     const payload = {
-      customer_id: 1,
+      customer_id: selectedCustomer.customer_id,
       employee_id: employeeId,
       payment_status: paymentStatus,
       items: items.map((item) => ({
@@ -520,6 +650,7 @@ const CreateBill = () => {
     setItems([]);
     setPaymentAmount("");
     setPaymentStatus("Pending");
+    setSelectedCustomer(null);
 
   } catch (error) {
     toast.error(
