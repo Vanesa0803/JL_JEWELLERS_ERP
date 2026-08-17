@@ -274,6 +274,92 @@ const CreateBill = () => {
     })}`;
   };
 
+  /*
+   * Submits the bill.
+   *
+   * This was declared INSIDE the items.map() callback that renders the
+   * table rows, so it existed only within that loop. The "Create Bill"
+   * button sits outside the loop and referenced an identifier that was not
+   * in scope there, which threw during render and left the page blank --
+   * and with no items added, the loop never ran, so it was never created
+   * at all.
+   */
+  const handleCreateBill = async () => {
+  try {
+  // Basic validation
+  if (!selectedCustomer) {
+  toast.error("Choose a customer before creating the bill");
+  return;
+  }
+
+  if (items.length === 0) {
+  toast.error("Add at least one item");
+  return;
+  }
+
+  /*
+  * The server rejects an empty bill with a 500 rather than a 400, so it is
+  * worth catching both of these here — but the checks are a courtesy, not
+  * the guard. The server refuses regardless.
+  */
+
+  /*
+  * Only the raw inputs are sent. The server recalculates every figure
+  * itself (bill.service.js -> billing.calculator.js) and stores what IT
+  * computes, which is correct: the money must not be decided by the
+  * browser. The totals shown on this screen are for the operator's benefit
+  * and are checked against the server's response below.
+  *
+  * STILL HARDCODED:
+  *   employee_id — the logged-in user is a row in `users`, while a bill
+  *                 references `employees`. Nothing links the two tables, so
+  *                 "who made this sale" cannot be answered yet. That is a
+  *                 schema gap, not an oversight here.
+  */
+  const employeeId = 1;
+
+  const payload = {
+  customer_id: selectedCustomer.customer_id,
+  employee_id: employeeId,
+  payment_status: paymentStatus,
+  items: items.map((item) => ({
+  product_id: Number(item.product_id) || null,
+  metal_type: item.metal_type,
+  purity: item.purity,
+  quantity: Number(item.quantity) || 1,
+  net_weight: Number(item.net_weight) || 0,
+  rate: Number(item.rate) || 0,
+  making_charge_percent: Number(item.making_charge_percent) || 0,
+  discount: Number(item.discount) || 0,
+  })),
+  };
+
+  const response = await api.post("/bills", payload);
+
+  const saved = response.data?.data ?? response.data;
+
+  toast.success(
+  saved?.invoice_number
+  ? `Bill ${saved.invoice_number} created`
+  : "Bill created"
+  );
+
+  // Start a fresh bill rather than leaving the old lines on screen, which
+  // is how the same items get billed twice.
+  setItems([]);
+  setPaymentAmount("");
+  setPaymentStatus("Pending");
+  setSelectedCustomer(null);
+
+  } catch (error) {
+  toast.error(
+  error.response?.data?.message ||
+  error.message ||
+  "Could not create the bill"
+  );
+  }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -585,81 +671,6 @@ const CreateBill = () => {
                   const calculation =
                     calculateItem(item);
 
-                  const handleCreateBill = async () => {
-  try {
-    // Basic validation
-    if (!selectedCustomer) {
-      toast.error("Choose a customer before creating the bill");
-      return;
-    }
-
-    if (items.length === 0) {
-      toast.error("Add at least one item");
-      return;
-    }
-
-    /*
-     * The server rejects an empty bill with a 500 rather than a 400, so it is
-     * worth catching both of these here — but the checks are a courtesy, not
-     * the guard. The server refuses regardless.
-     */
-
-    /*
-     * Only the raw inputs are sent. The server recalculates every figure
-     * itself (bill.service.js -> billing.calculator.js) and stores what IT
-     * computes, which is correct: the money must not be decided by the
-     * browser. The totals shown on this screen are for the operator's benefit
-     * and are checked against the server's response below.
-     *
-     * STILL HARDCODED:
-     *   employee_id — the logged-in user is a row in `users`, while a bill
-     *                 references `employees`. Nothing links the two tables, so
-     *                 "who made this sale" cannot be answered yet. That is a
-     *                 schema gap, not an oversight here.
-     */
-    const employeeId = 1;
-
-    const payload = {
-      customer_id: selectedCustomer.customer_id,
-      employee_id: employeeId,
-      payment_status: paymentStatus,
-      items: items.map((item) => ({
-        product_id: Number(item.product_id) || null,
-        metal_type: item.metal_type,
-        purity: item.purity,
-        quantity: Number(item.quantity) || 1,
-        net_weight: Number(item.net_weight) || 0,
-        rate: Number(item.rate) || 0,
-        making_charge_percent: Number(item.making_charge_percent) || 0,
-        discount: Number(item.discount) || 0,
-      })),
-    };
-
-    const response = await api.post("/bills", payload);
-
-    const saved = response.data?.data ?? response.data;
-
-    toast.success(
-      saved?.invoice_number
-        ? `Bill ${saved.invoice_number} created`
-        : "Bill created"
-    );
-
-    // Start a fresh bill rather than leaving the old lines on screen, which
-    // is how the same items get billed twice.
-    setItems([]);
-    setPaymentAmount("");
-    setPaymentStatus("Pending");
-    setSelectedCustomer(null);
-
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message ||
-      error.message ||
-      "Could not create the bill"
-    );
-  }
-};
 
 
                   return (

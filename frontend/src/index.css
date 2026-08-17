@@ -16,3 +16,37 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/*
+ * Scroll without a visible scrollbar.
+ *
+ * Applied to the two panes that scroll: the sidebar nav and the main content
+ * area. The content still scrolls by wheel, trackpad, keyboard and touch — only
+ * the bar itself is hidden.
+ *
+ * Three declarations because the browsers disagree. WebKit and Blink need the
+ * ::-webkit-scrollbar pseudo-element; Firefox uses scrollbar-width; older Edge
+ * used -ms-overflow-style. Setting only one of them looks perfect in whichever
+ * browser you happened to test and leaves a bar everywhere else — worth noting
+ * since this app is heading for Electron, which is Chromium, while development
+ * happens in whatever browser is open.
+ */
+.no-scrollbar {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* legacy Edge / IE */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;                  /* Chrome, Edge, Safari, Electron */
+  width: 0;
+  height: 0;
+}
+
+/*
+ * Deliberately NOT setting `overflow: hidden` on html/body here.
+ *
+ * It would stop the window scrolling, which is right for the dashboard shell —
+ * but the login screen uses the same body, and on a short window that would
+ * clip the form with no way to reach it. The shell handles this itself with
+ * `h-screen overflow-hidden`, which is scoped to the pages that want it.
+ */

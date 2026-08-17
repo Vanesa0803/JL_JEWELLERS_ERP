@@ -460,12 +460,25 @@ const Orders = () => {
 
         <div className="flex flex-col gap-3 border-t border-[#E7DED3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
 
+          {/*
+            visibleOrders, not ordersData: `ordersData` was the hardcoded array
+            this page used before it was wired to the API. The array went when
+            the real fetch landed; this one reference to it did not, so the page
+            threw on render and showed nothing at all.
+
+            It counts the FILTERED list because that is what the table above is
+            showing — reporting the unfiltered total next to a filtered table
+            reads as a bug to whoever is searching.
+          */}
           <p className="text-sm text-[#85786D]">
             Showing{" "}
             <span className="font-medium text-[#2B2622]">
-              {ordersData.length}
+              {visibleOrders.length}
             </span>{" "}
-            orders
+            {visibleOrders.length === 1 ? "order" : "orders"}
+            {visibleOrders.length !== orders.length && (
+              <> of {orders.length}</>
+            )}
           </p>
 
 

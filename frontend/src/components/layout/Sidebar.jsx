@@ -20,7 +20,7 @@ import {
 
 import { NavLink } from "react-router-dom";
 
-import jlSidebarLogo from "../../assets/logos/jl-logo-sidebar.png";
+import jlEmblem from "../../assets/logos/jl-emblem.png";
 
 const navigationItems = [
   {
@@ -98,17 +98,50 @@ const navigationItems = [
 const Sidebar = () => {
     const [billingOpen, setBillingOpen] = useState(false);
   return (
-    <aside className="flex h-550 w-64 shrink-0 flex-col bg-[#3A1206]">
-      {/* Logo */}
-      <div className="flex h-20 shrink-0 items-center border-b border-white/10 px-5">
+    // h-full, not h-550: `h-550` is not a Tailwind class and never generated
+    // any CSS, so this had no height at all and simply grew with its content.
+    // The logo stays put while the nav list below scrolls on its own if the
+    // window is short.
+    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden bg-[#3A1206]">
+      {/*
+        Emblem + wordmark.
+
+        The wordmark is real text, not the old jl-logo-sidebar image. That file
+        is a JPEG despite its .png name, so it can carry no transparency and
+        its maroon is part of the picture — set against this panel it risks a
+        visible rectangle wherever the two shades disagree, and JPEG banding
+        shows badly on a flat dark colour.
+
+        Text also stays sharp at any zoom, can be read aloud by a screen
+        reader, and puts the shop name somewhere it can be changed without an
+        image editor.
+
+        min-w-0 lets the text block shrink instead of pushing past the panel
+        edge on a narrow window; truncate then clips it cleanly.
+      */}
+      <div className="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-4">
         <img
-          src={jlSidebarLogo}
-          alt="JL Jewellers"
-          className="h-12 w-auto object-contain"
+          src={jlEmblem}
+          alt=""
+          aria-hidden="true"
+          className="h-11 w-11 shrink-0 object-contain"
         />
+
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-semibold leading-tight text-[#F5E9DA]">
+            Chepuri&rsquo;s JL Jewellers
+          </p>
+
+          <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-[0.18em] text-[#C9A227]">
+            ERP System
+          </p>
+        </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — its own scroll region, so a long nav on a short screen
+          scrolls here rather than pushing the whole page. `no-scrollbar`
+          hides the bar; scrolling still works normally. */}
+      <nav className="no-scrollbar flex-1 overflow-y-auto">
      {navigationItems.map((item) => {
   const Icon = item.icon;
 
@@ -294,10 +327,7 @@ const Sidebar = () => {
     </NavLink>
   );
 })}
-
-
-
-
+      </nav>
     </aside>
   );
 };
