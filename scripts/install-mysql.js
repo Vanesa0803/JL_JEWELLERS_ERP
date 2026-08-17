@@ -27,7 +27,10 @@
  */
 
 const { execFileSync, spawnSync } = require("child_process");
-const { findMysqld, isWindows } = require("./lib/find-mysql");
+const { findMysqld, findDataDir, isWindows } = require("./lib/find-mysql");
+const { ensureDataDir, startMysqld, setRootPassword, isPortOpen } = require("./lib/mysql-data");
+const { ensureEnvFile, writeValue } = require("./lib/env-file");
+const crypto = require("crypto");
 
 const WINGET_PACKAGE = "Oracle.MySQL";
 
@@ -59,13 +62,57 @@ const hasWinget = () => {
   }
 };
 
-const main = () => {
+/**
+ * Turn an installed mysqld into a MySQL you can actually connect to.
+ *
+ * winget installs the binaries and nothing else — no data directory, no system
+ * tables, no root password. Those are normally created afterwards by MySQL's
+ * separate Configurator, which winget does not run. Without this, `db:install`
+ * reported success and every later command failed with "could not find its data
+ * directory", pointing at a location that did not exist and could not be made.
+ */
+const configure = async (mysqld) => {
+  const port = Number(process.env.DB_PORT) || 3306;
+
+  if (await isPortOpen(port)) {
+    log(`Something is already serving 127.0.0.1:${port} — leaving it alone.`);
+    log(`Next: run "npm run db:setup" to create and populate the database.`);
+    return;
+  }
+
+  const { dir, initialised } = ensureDataDir({
+    mysqld,
+    dataDir: findDataDir(),
+    log,
+  });
+
+  if (!(await startMysqld({ mysqld, dataDir: dir, port, log }))) {
+    log(`MySQL did not start within 60s. Start it manually and try again.`);
+    process.exit(1);
+  }
+
+  if (initialised) {
+    const password = crypto.randomBytes(18).toString("base64url");
+
+    await setRootPassword({ port, password, log });
+
+    ensureEnvFile({ log: (m) => console.log(`[env] ${m}`) });
+    writeValue("DB_PASSWORD", password);
+
+    log(`DB_PASSWORD written to backend/.env — nothing to edit by hand.`);
+  }
+
+  console.log("");
+  log(`Next: run "npm run db:setup" to create and populate the database.`);
+};
+
+const main = async () => {
   const existing = findMysqld();
 
   if (existing) {
     log(`MySQL is already installed:`);
     log(`  ${existing}`);
-    log(`Nothing to do. Run "npm run db:setup" to create the database.`);
+    await configure(existing);
     return;
   }
 
@@ -128,7 +175,18 @@ const main = () => {
   }
 
   log(`Installed: ${installed}`);
-  log('Next: run "npm run db:setup" to create and populate the database.');
+  console.log("");
+
+  /*
+   * Do not stop at "installed". That is what left a fresh clone stranded: the
+   * binaries were present, nothing else was, and the next command hit an
+   * unfixable dead end.
+   */
+  await configure(installed);
 };
 
-main();
+main().catch((error) => {
+  console.log("");
+  log(error.message);
+  process.exit(1);
+});

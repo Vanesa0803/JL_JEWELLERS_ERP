@@ -33,8 +33,23 @@
 const fs = require("fs");
 const path = require("path");
 const mysql = require("mysql2/promise");
+const { spawnSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
+const { ensureEnvFile, readValue } = require("./lib/env-file");
+
+/*
+ * Create backend/.env before dotenv reads it.
+ *
+ * This used to stop and say "Run: npm run env:setup" — a step that knew exactly
+ * what was wrong and what would fix it, and then made the user type it. If a
+ * script can name the command that fixes the problem, it can run it.
+ *
+ * Must happen before dotenv.config() below, since that reads the file we may be
+ * about to create.
+ */
+ensureEnvFile({ log: (m) => console.log(`[env] ${m}`) });
+
 require("dotenv").config({ path: path.join(ROOT, "backend", ".env") });
 
 const DB_NAME = process.env.DB_NAME || "jl_jewellers_erp";
@@ -209,27 +224,71 @@ const migrationFiles = () => {
     .map((f) => ({ label: `migrations/${f}`, file: path.join(dir, f) }));
 };
 
-const main = async () => {
-  if (!fs.existsSync(path.join(ROOT, "backend", ".env"))) {
-    log("backend/.env does not exist. Run: npm run env:setup");
-    process.exit(1);
-  }
+/**
+ * Start MySQL by delegating to ensure-mysql.js, then report whether to retry.
+ *
+ * Rather than duplicating the locate/initialise/start logic, this runs the
+ * script that owns it. That script may also write a freshly generated
+ * DB_PASSWORD into backend/.env, so the password is re-read afterwards —
+ * `connection` was built from a copy of the environment that is now stale.
+ */
+const tryStartingMysql = () => {
+  log("Attempting to start MySQL...");
+  console.log("");
 
+  const result = spawnSync(process.execPath, [path.join(__dirname, "ensure-mysql.js")], {
+    stdio: "inherit",
+  });
+
+  console.log("");
+
+  if (result.status !== 0) return false;
+
+  const password = readValue("DB_PASSWORD");
+  if (password !== null) connection.password = password;
+
+  return true;
+};
+
+const main = async () => {
   /* ---- connect without selecting a database, so we can create it ---- */
   let root;
+
+  const connect = () =>
+    mysql.createConnection({ ...connection, multipleStatements: true });
+
   try {
-    root = await mysql.createConnection({ ...connection, multipleStatements: true });
+    root = await connect();
   } catch (error) {
-    log(`Could not connect to MySQL at ${connection.host}:${connection.port}`);
-    log(`  ${error.message}`);
-    console.log("");
     if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      log(`Could not connect to MySQL at ${connection.host}:${connection.port}`);
+      log(`  ${error.message}`);
+      console.log("");
       log("The user or password in backend/.env is wrong. Check DB_USER / DB_PASSWORD.");
-    } else {
-      log('Is MySQL running? Try: npm run db');
-      log('Not installed? Try:  npm run db:install');
+      process.exit(1);
     }
-    process.exit(1);
+
+    /*
+     * Anything else is almost always "MySQL is not running", which is fixable
+     * here instead of being handed back as a pair of commands to type.
+     */
+    log(`MySQL is not reachable at ${connection.host}:${connection.port}.`);
+
+    if (!tryStartingMysql()) {
+      log("Could not start MySQL automatically.");
+      log('Not installed? Try:  npm run db:install');
+      process.exit(1);
+    }
+
+    try {
+      root = await connect();
+    } catch (retryError) {
+      log(`Still could not connect: ${retryError.message}`);
+      if (retryError.code === "ER_ACCESS_DENIED_ERROR") {
+        log("Check DB_USER / DB_PASSWORD in backend/.env.");
+      }
+      process.exit(1);
+    }
   }
 
   const [existing] = await root.query(

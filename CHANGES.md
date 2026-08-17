@@ -188,10 +188,14 @@ Added a `package.json` at the project root using `concurrently`:
 
 | Command | What it does |
 |---|---|
+| `npm run bootstrap` | **Whole setup: dependencies, `.env`, MySQL, database, migrations** |
 | `npm run setup` | Installs dependencies for root + backend + frontend, in one go |
 | `npm run dev` | **Starts backend and frontend together** |
 | `npm run build` | Builds the frontend for production |
 | `npm run start` | Runs the backend without auto-reload |
+| `npm run db` | Starts MySQL if it isn't running (also runs before `dev`) |
+| `npm run db:install` | Installs MySQL — needs administrator rights, once per machine |
+| `npm run db:setup` | Creates the database, loads the schema, applies migrations |
 
 Output is colour-coded and labelled `[BACKEND]` / `[FRONTEND]` so you can tell whose
 message is whose. Pressing `Ctrl+C` once stops both.
@@ -966,11 +970,14 @@ half-loads, which is the worst outcome available - it looks like it worked
 until something specific breaks weeks later.
 
 **What we did**
-Three commands, each safe to run twice:
+One command, safe to run twice:
 
-    npm run db:install    # installs MySQL if the machine has none
-    npm run db:setup      # creates the database, loads everything, migrates
+    npm run bootstrap     # dependencies, .env, MySQL, database, migrations
     npm run dev           # starts it all
+
+The individual steps (`db:install`, `db:setup`, `env:setup`, `db`) all still
+exist and are still separately runnable — see the follow-up below for why the
+wrapper became necessary.
 
 Installing MySQL is deliberately **separate** from `npm run dev`. Installing a
 database server should never happen as a side effect of "run the app" - it
@@ -1030,22 +1037,107 @@ tables, 8 users, 20 customers, 15 products, 15 bills. Then pointed the app at
 it - login succeeded, the read sweep passed 92 routes with 0 regressions, and
 the write sweep passed 10 of 10. Running setup a second time applied 0 files.
 
+### Follow-up: it still didn't work on a second machine
+
+**What went wrong**
+The setup above was verified on a machine that already had a working MySQL. On a
+clean Windows desktop with no MySQL at all, it dead-ended:
+
+    npm run db:install   ->  Successfully installed
+                             [mysql] Installed: ...\bin\mysqld.exe
+    npm run dev          ->  [db] Found mysqld at: ...\bin\mysqld.exe
+                             [db] ...but could not find its data directory.
+                             [db] Set MYSQL_DATADIR to the correct location.
+
+That last line is unfollowable advice. **The winget package installs the MySQL
+binaries and nothing else** — initialising a data directory, creating the system
+tables and setting a root password are done afterwards by MySQL's separate
+Configurator, which winget never runs. So there was no correct location to point
+`MYSQL_DATADIR` at, no data directory existed anywhere, and nothing in the
+project could create one. The instruction was impossible to satisfy.
+
+The full observed sequence was eight commands with two dead ends in it:
+
+    npm install → npm run dev → npm run db:install → npm run dev (dead end)
+    → npm run db:setup → npm run env:setup → npm run db:setup → npm run db (dead end)
+
+Every individual message was accurate. The *sequence* was the problem — and the
+missing data directory made two points in it unrecoverable.
+
+**What we did**
+
+*1. Made the missing data directory fixable.* New `scripts/lib/mysql-data.js`
+initialises a data directory when none exists (`mysqld --initialize-insecure`
+into `C:\ProgramData\MySQL\data`, which is the first path the locator already
+looks for), starts the server, and gives root a generated password.
+
+Everything in it is conditional on the datadir being **absent**. A machine with
+a real MySQL someone uses for other work gets nothing initialised and no
+password changed — the return value says whether the server is ours to configure
+or someone else's to leave alone.
+
+*2. Stopped printing commands instead of running them.* `db:setup` used to exit
+with `backend/.env does not exist. Run: npm run env:setup`. A step that knows
+exactly what is wrong and what would fix it can do it. It now creates the file,
+and starts MySQL if it isn't running, before giving up.
+
+*3. Removed the last manual edit.* When we initialise MySQL ourselves we know the
+root password, because we just generated it — so it is written straight into
+`backend/.env`. `EDIT backend/.env AND SET DB_PASSWORD` no longer appears in the
+happy path. On a pre-existing MySQL it still asks, because that password isn't
+ours to know.
+
+*4. Added `npm run bootstrap`.* Runs the four steps in the right order and stops
+at the first genuine blocker.
+
+**Remarks**
+Installing MySQL is *still* deliberately separate from `npm run dev`, for the
+original reason: it writes outside the project and needs elevation. But
+*initialising a local data folder* is not the same act as installing a database
+server, so that moved into the automatic path where it belongs.
+
+One bug worth recording, found by running the new script rather than reading it:
+`spawnSync(process.execPath, ...)` with `shell: true` fails on Windows with
+`'C:\Program' is not recognized`, because cmd.exe splits `C:\Program
+Files\nodejs\node.exe` at the space. `npm` needs a shell to be found at all;
+`node` must not have one. They are now launched differently and the reason is
+commented at the call site.
+
+**Proof it works**
+The fresh-install path was tested in isolation — a new datadir in a temp
+directory on port 3399: initialised from nothing, started, root password set,
+reconnected using that password, and a second `ensureDataDir` on the same
+directory correctly reported `initialised: false` instead of wiping it.
+
+On the already-working machine: `npm run db` no-ops, `env:setup` leaves the file
+untouched, `db:setup` applied 0 of 16 files on the second run, and
+`DB_PASSWORD` was verifiably unchanged. `npm run bootstrap` completes all four
+steps, and `npm run dev` afterwards serves the frontend on 5173 and logs in
+through the proxy with a real token.
+
 ---
 
 ## How to run it now
 
 ```bash
 # once, after cloning
-npm run setup
+npm run bootstrap
 
 # every day
 npm run dev
 ```
 
-Then open **http://localhost:5173**
+Then open **http://localhost:5173** and sign in with
+`admin@jljewellers.com` / `Admin@123`.
 
-You need MySQL running locally with the `JL_Jewellers_ERP` database loaded from the
-`database/` folder, and `backend/.env` filled in (copy `backend/.env.example`).
+`npm run bootstrap` installs all three `package.json` trees, creates
+`backend/.env` with a generated `JWT_SECRET`, initialises and starts MySQL,
+creates the database, loads the schema and sample data, and applies every
+migration. Every step is idempotent, so it is safe to re-run any time.
+
+The one thing it cannot do is *install* MySQL, because that needs administrator
+rights. If no MySQL is on the machine it stops and tells you to run
+`npm run db:install` once, then `npm run bootstrap` again.
 
 ### What you should see
 

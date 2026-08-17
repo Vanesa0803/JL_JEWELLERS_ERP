@@ -4,6 +4,7 @@
   "private": true,
   "description": "JL Jewellers ERP — MySQL + Express backend, React frontend. Target: Windows desktop app via Electron.",
   "scripts": {
+    "bootstrap": "node scripts/bootstrap.js",
     "setup": "npm install && cd backend && npm install && cd ../frontend && npm install && cd .. && npm run env:setup",
     "env:setup": "node scripts/setup-env.js",
     "db": "node scripts/ensure-mysql.js",
