@@ -284,6 +284,7 @@ So you do not redo it. All of this is on the branch `rebuild/foundation`.
 | Fixed | What it was |
 |---|---|
 | **One server, one port** | The two Express apps are now one. The whole API is served together |
+| **One command to set up a clone** | `npm run bootstrap` — dependencies, `.env`, MySQL, database, migrations |
 | **One command to run everything** | `npm run dev` starts MySQL, backend and frontend together |
 | **The port mismatch** | The frontend now calls `/api` and Vite forwards it. **CORS is no longer involved at all** — same-origin requests cannot produce a CORS error |
 | **`bcryptjs` installed** | It was required but never in `package.json` |
@@ -357,6 +358,32 @@ Two things that will confuse you the first time:
 
 `CHANGES.md` explains each of these in plain language, with what the problem was
 and how it was fixed.
+
+### Setting up your clone — start here
+
+```bash
+npm run db:install    # once per machine. Needs administrator rights.
+npm run bootstrap     # everything else. Safe to re-run any time.
+npm run dev           # every day after that
+```
+
+Then open **http://localhost:5173** and sign in with
+`admin@jljewellers.com` / `Admin@123`.
+
+`npm run bootstrap` installs all three `package.json` trees, creates
+`backend/.env` with a generated `JWT_SECRET`, initialises and starts MySQL,
+creates the database, loads the schema and sample data, and applies every
+migration. **You should not need to edit any file by hand.**
+
+Skip `db:install` if you already have MySQL running — bootstrap will find it and
+leave it alone. It will not touch an existing database or change its password;
+in that case it will ask you to put your own `DB_PASSWORD` in `backend/.env`,
+because that password is not ours to know.
+
+> If a step fails, read what it printed before trying the next thing. Each one
+> names the specific cause — wrong password, MySQL not running, not installed.
+> `npm run bootstrap` stops at the first real blocker rather than continuing on
+> a broken setup.
 
 ---
 
