@@ -304,35 +304,114 @@ during the merge.
 
 ---
 
-## 8. What to do next
+## 8. What changed since this briefing was written
 
-**Right now, most important:** every backend route is still unauthenticated. Anyone who
-can reach the server can read and write bills, payments and customer KYC documents with a
-single `curl` command. We added a login screen to the UI this week, which makes the system
-*look* protected — that is more dangerous than an obviously open one, because people stop
-checking.
+*Updated 2026-08-17. The section that was here told you every route was
+unauthenticated and that writing `auth.js` was your first assignment. Both were
+true when it was written. Neither is true now, and following it would leave you
+stuck on errors this document did not explain.*
 
-`backend/src/middleware/auth.js` is a 0-byte file. Write it — there is a working example
-in `backend/middleware/authMiddleware.js` — and apply it to every business route. Decide
-which routes stay public. This is your first assignment and it will take you through every
-module in the codebase, which is a good way to learn what you inherited.
+### Every API call now needs a token
 
-**Then, half a day of very high value:** fix the four wrong names above. That turns seven
-broken endpoints into working ones. Do it carefully rather than with find-and-replace —
-`cash_ledger` may not have exactly the columns the code assumed for `cash_book`.
+This is the one thing that will stop you if you do not know it.
 
-**Then:** Stage 0 of the merge, and Vanshika starts wiring the dashboard.
+`middleware/auth.js` is written, tested and mounted on the `/api` router, so
+**every route below `/auth` requires a valid token**. A request without one gets:
+
+```
+401  {"success": false, "message": "Not signed in"}
+```
+
+That is not a bug in your code. It is the system working.
+
+You do not need to do anything special in the app — `services/api.js` is the
+only axios instance and attaches the token to every request automatically. It
+matters when you test by hand:
+
+```bash
+# get a token
+curl -s -X POST http://127.0.0.1:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@jljewellers.com","password":"Admin@123"}'
+
+# use it
+curl -s http://127.0.0.1:5000/api/v1/bills -H "Authorization: Bearer <token>"
+```
+
+Two things that will confuse you the first time:
+
+- **Ten wrong passwords locks login for five minutes.** It blocks the *correct*
+  password too — it cannot tell you from an attacker. Wait it out.
+- **A token dies when you log out, and after a day.** The app sends you back to
+  the login screen automatically when that happens.
+
+### Other things that are no longer true
+
+| The briefing said | Now |
+|---|---|
+| `auth.js` is 0 bytes — write it | Written and mounted on all 41 route files |
+| Every route is unauthenticated | Every route requires a token (`/uploads` is the one exception) |
+| Bills are numbered with `Date.now()` | Proper GST serial numbers — `INV/2026-27/0016` |
+| Receiving goods does not update stock | It does, and deleting the receipt reverses it |
+| The backlog has 61 open items | 68 found, 37 closed, **31 open** |
+
+`CHANGES.md` explains each of these in plain language, with what the problem was
+and how it was fixed.
 
 ---
+
+## 8a. What to work on
+
+The merge is done. 92 endpoints answer, both server sweeps pass, and all 19
+screens render. What is left is genuinely different work from what this
+document originally described.
+
+### The real remaining work: eight modules have a backend and no screen
+
+| Module | Endpoints ready | Screen |
+|---|:--:|---|
+| Inventory | 14 | none |
+| Reports | 6 + exports | none |
+| Business intelligence | 8 | none |
+| Ledgers | 6 | none |
+| Finance | several | none |
+| Makers / Karigars | ~10 | none |
+| Gold schemes | ~12 | none |
+| Notifications, Settings | — | none |
+
+This is the best work in the project to be given. The hard question — *does the
+server actually do this correctly?* — is already answered, so you are free to
+concentrate on the part that is genuinely yours: what the screen should show,
+what the shopkeeper needs to see first, and what happens when there is no data
+yet.
+
+Pick one module and take it end to end rather than starting several.
+
+### Three checks to run before you say something works
+
+A feature is done when you have called it and seen the response — not when the
+file exists. That rule is why this project was in the state it was.
+
+```bash
+node scripts/sweep.cjs          # 92 read endpoints
+node scripts/sweep-writes.cjs   # 10 write paths, with real transactions
+cd frontend && npm run check:render   # every screen renders
+```
+
+The third one exists because of a mistake worth learning from. The two server
+sweeps were passing green while **two screens were completely blank** — the
+faults were in the pages, and no amount of server testing could see them. If
+you only test the API, you will make the same mistake.
 
 ## 9. Where to read more
 
 | Document | What is in it |
 |---|---|
 | `FEATURE_STATUS_AUDIT.md` | Every feature, checked against the code and the database |
-| `REMEDIATION_BACKLOG.md` | 61 items rated by severity, with effort estimates and IDs |
-| `MERGE_PLAN.md` | The full module-by-module merge plan |
-| `CHANGES.md` | Everything changed so far, in plain language |
+| `REMEDIATION_BACKLOG.md` | Every item rated by severity — 68 found, 37 closed, 31 open. Struck-through rows are done |
+| `MERGE_PLAN.md` | The module-by-module merge plan. Historical now: the merge is finished |
+| `MERGE_LOG.md` | What was taken from which branch, and why |
+| `CHANGES.md` | Everything changed so far, in plain language — start here |
 
 ---
 
