@@ -1,4 +1,67 @@
 import { pool } from '../../config/db.js';
+import { assertColumns } from '../../utils/columnGuard.js';
+
+/**
+ * Apply a stock change for one GRN line, and record why it happened (S2-19).
+ *
+ * `delta` is positive when goods are received and negative when a GRN is
+ * deleted and the receipt is being undone.
+ *
+ * NULL-SAFE ON PURPOSE
+ * --------------------
+ * `inventory` has no unique key on (product_id, variant_id), and variant_id is
+ * NULL for every row in practice. That rules out INSERT ... ON DUPLICATE KEY:
+ * with no unique key there is nothing to conflict on, and even with one, MySQL
+ * treats NULLs as distinct, so every receipt of a variant-less product would
+ * insert ANOTHER row instead of adding to the existing one. Stock would then
+ * be split across duplicate rows and every total would read low.
+ *
+ * So the row is located with `<=>` (NULL-safe equality) and locked FOR UPDATE,
+ * then updated or inserted. The lock is held until the caller's transaction
+ * commits, so two receipts of the same product cannot both read the same
+ * starting quantity and lose one of the increments.
+ */
+const applyStockChange = async (connection, { productId, variantId, delta, referenceNumber, remarks }) => {
+    if (!delta) return;
+
+    const [existing] = await connection.execute(
+        `SELECT inventory_id, available_quantity
+           FROM inventory
+          WHERE product_id = ? AND variant_id <=> ?
+          FOR UPDATE`,
+        [productId, variantId ?? null]
+    );
+
+    if (existing.length > 0) {
+        await connection.execute(
+            `UPDATE inventory
+                SET available_quantity = available_quantity + ?,
+                    last_stock_update = CURRENT_TIMESTAMP
+              WHERE inventory_id = ?`,
+            [delta, existing[0].inventory_id]
+        );
+    } else {
+        // First time this product has been stocked. Only on a receipt — a
+        // reversal with no inventory row would mean undoing something that was
+        // never applied, so it is left alone rather than creating a negative.
+        if (delta < 0) return;
+
+        await connection.execute(
+            `INSERT INTO inventory (product_id, variant_id, available_quantity)
+             VALUES (?, ?, ?)`,
+            [productId, variantId ?? null, delta]
+        );
+    }
+
+    // The audit trail. `stock_movements` already had a 'Purchase' movement type
+    // and had never been written to from here.
+    await connection.execute(
+        `INSERT INTO stock_movements
+            (product_id, variant_id, movement_type, quantity, reference_number, remarks)
+         VALUES (?, ?, 'Purchase', ?, ?, ?)`,
+        [productId, variantId ?? null, delta, referenceNumber || null, remarks || null]
+    );
+};
 
 class GrnRepository {
     async create(grnData, items) {
@@ -7,6 +70,7 @@ class GrnRepository {
             await connection.beginTransaction();
 
             const grnFields = Object.keys(grnData);
+            await assertColumns('goods_receipt_notes', grnFields);
             const grnValues = Object.values(grnData);
             const grnPlaceholders = grnFields.map(() => '?').join(', ');
             
@@ -26,6 +90,29 @@ class GrnRepository {
                         item.purchase_rate || null,
                         item.remarks || null
                     ]);
+
+                    /*
+                     * S2-19 — receiving goods now adds them to stock.
+                     *
+                     * Previously this recorded the receipt and stopped. Stock
+                     * only ever went DOWN (on sale), so recorded inventory
+                     * drifted below the shelf a little further with every
+                     * delivery, and nothing ever errored to say so. A shop
+                     * would only notice when a reorder report told it to buy
+                     * things it already had.
+                     *
+                     * ACCEPTED, not received: rejected goods are physically
+                     * present but are going back to the supplier, so they are
+                     * not stock. This is the whole reason the GRN separates
+                     * the two quantities.
+                     */
+                    await applyStockChange(connection, {
+                        productId: item.product_id,
+                        variantId: item.variant_id,
+                        delta: Number(item.accepted_quantity) || 0,
+                        referenceNumber: grnData.grn_number,
+                        remarks: `Goods received against GRN ${grnData.grn_number}`
+                    });
                 }
             }
 
@@ -124,6 +211,7 @@ class GrnRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('goods_receipt_notes', fields);
         if (fields.length === 0) return 0;
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');
@@ -139,6 +227,39 @@ class GrnRepository {
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
+
+            /*
+             * Take the stock back out before deleting the lines (S2-19).
+             *
+             * Now that receiving a GRN ADDS stock, deleting one has to remove
+             * it again — otherwise deleting a receipt would leave the goods on
+             * the books forever, which is the same drift the fix exists to
+             * prevent, just in the opposite direction.
+             *
+             * This must read the items BEFORE the DELETE below, or there is
+             * nothing left to reverse.
+             */
+            const [grnRows] = await connection.execute(
+                `SELECT grn_number FROM goods_receipt_notes WHERE grn_id = ?`,
+                [id]
+            );
+            const grnNumber = grnRows.length > 0 ? grnRows[0].grn_number : null;
+
+            const [itemsToReverse] = await connection.execute(
+                `SELECT product_id, accepted_quantity FROM goods_receipt_items WHERE grn_id = ?`,
+                [id]
+            );
+
+            for (const item of itemsToReverse) {
+                await applyStockChange(connection, {
+                    productId: item.product_id,
+                    variantId: null,
+                    delta: -(Number(item.accepted_quantity) || 0),
+                    referenceNumber: grnNumber,
+                    remarks: `Reversed — GRN ${grnNumber || id} deleted`
+                });
+            }
+
             // First delete items
             await connection.execute(`DELETE FROM goods_receipt_items WHERE grn_id = ?`, [id]);
             // Then delete header

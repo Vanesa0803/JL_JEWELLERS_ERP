@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.js';
+import { assertColumns } from '../../utils/columnGuard.js';
 
 class SupplierPaymentRepository {
     async create(paymentData) {
@@ -9,6 +10,7 @@ class SupplierPaymentRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('supplier_payments', fields);
         const values = definedEntries.map(([, value]) => value);
         const placeholders = fields.map(() => '?').join(', ');
 
@@ -72,6 +74,7 @@ class SupplierPaymentRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('supplier_payments', fields);
         if (fields.length === 0) return 0;
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');

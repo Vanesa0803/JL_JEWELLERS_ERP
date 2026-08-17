@@ -13,8 +13,8 @@ import api from "../services/api";
  *
  *     const { data, loading, error, reload } = useApi("/dashboard");
  *
- * Note it uses services/api, the axios instance that attaches the auth token —
- * NOT api/axios, which does not. See S3-9.
+ * It uses services/api, which is now the app's only axios instance and
+ * attaches the auth token to every request (S3-9).
  */
 export const useApi = (path, { enabled = true } = {}) => {
   const [data, setData] = useState(null);

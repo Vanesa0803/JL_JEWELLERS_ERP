@@ -768,6 +768,188 @@ grand total    118,556.00    118,556.00    match
 
 ---
 
+## 3.0 - Every route now checks who you are
+
+**The issue**
+One route in the whole application asked for a login. One, out of forty-one route files.
+Everything else - bills, payments, customer KYC documents, stock levels, the cash book -
+answered anybody who asked. No password, no token, nothing.
+
+The only reason this was not a live emergency is that the server only listens on the
+machine it runs on. That is a deployment accident, not a safety measure. Change one line
+in `server.js` and the whole shop's books are on the network.
+
+**What we did**
+Put the check on the router itself, so it covers everything underneath it in one line
+rather than being added to forty-one files by hand.
+
+That choice matters more than it looks. If the check has to be remembered for each new
+route, then sooner or later somebody forgets one - and a forgotten route does not break
+or complain. It just quietly lets everyone in, and it looks completely normal in testing.
+This way round, being protected is what happens by default, and letting a route be public
+has to be written down in a place where you can see it.
+
+**Remarks**
+`/uploads` is deliberately still open - customer documents are served from there and it
+sits outside this router. Flagged in the code and on the backlog rather than silently
+left.
+
+The two test scripts had to learn to log in first. Without that they would have reported
+92 failures, and the one line explaining why would have been buried under them.
+
+**Proof it works**
+Without a token, `/bills`, `/payments`, `/customers`, `/inventory`, `/cashbook`,
+`/dashboard` and `/employees` all answer **401**. With one, all 92 routes still pass.
+
+---
+
+## 3.1 - Bill numbers that GST law will actually accept
+
+**The issue**
+Every bill was numbered with the clock: `INV-1786939073522`. That is the number of
+milliseconds since 1970. It is unique, and unique is the *only* thing it is.
+
+GST rules require the number on a tax invoice to be a **consecutive serial number**,
+unique within a financial year. A timestamp is not consecutive and has no series, so
+every bill issued this way was non-compliant on its face - and you cannot explain the
+gaps to an inspector afterwards, because there is no sequence there to explain.
+
+**What we did**
+Bills are now numbered from a counter: `INV/2026-27/0016`. The financial year runs April
+to March, as it should.
+
+The important part is *where* the number is allocated. It happens inside the same
+transaction that saves the bill, which gives two things at once:
+
+- two bills started at the same moment cannot take the same number
+- **a bill that fails does not burn a number** - the counter rolls back with everything
+  else, so there is no hole in the book
+
+**Remarks**
+The `invoice_sequence` table already existed for exactly this and had never once been
+written to. It needed one constraint added before it was safe to use, which is migration
+`_09`.
+
+That migration starts the counter **above the highest number already used**, rather than
+at 1. Starting at 1 would have re-issued `INV000001` and created a duplicate invoice
+number - worse than the problem being fixed. The old timestamp numbers are ignored when
+working that out, or the counter would have jumped into the trillions.
+
+One real cost, stated plainly: bills are now created one at a time rather than in
+parallel. For a shop with one person at the counter this changes nothing, and a legally
+sound invoice book is worth far more than parallel billing.
+
+**Proof it works**
+Three bills in a row: `0016`, `0017`, `0018`. Then a bill that deliberately fails. Then
+the next real bill: **`0019`** - no gap.
+
+---
+
+## 3.2 - Goods received now actually arrive in stock
+
+**The issue**
+Recording a delivery did not add anything to stock. The receipt was filed, the purchase
+order was updated, and the inventory figure did not move.
+
+Stock therefore only ever went *down*, on sales. Every delivery pushed the recorded
+figure a little further below what was really on the shelf, and nothing ever showed an
+error. A shop would only notice when a reorder report told it to buy things it already
+had - by which point the numbers have been wrong for months.
+
+**What we did**
+Receiving goods now adds them to stock, in the same transaction as the receipt, and
+writes a line to the stock movement history saying where they came from.
+
+It adds the **accepted** quantity, not the received quantity. If ten arrive and three are
+damaged, seven go into stock. The damaged three are physically in the building but they
+are going back to the supplier, so they are not stock - which is the whole reason a
+goods receipt records the two numbers separately.
+
+**Remarks**
+Deleting a receipt now takes the stock back out again. Without that, this fix would have
+created the same drift in the opposite direction - delete a delivery and the goods stay
+on the books forever.
+
+Both tables needed for this already existed. `stock_movements` even had a "Purchase"
+category waiting for it. Nothing here was invented; it was connected.
+
+**Proof it works**
+Stock started at 25. Received 10, rejected 3 -> **32**. Deleted the receipt -> back to
+**25**.
+
+---
+
+## 3.3 - Closing the gap that let a request write any column it liked
+
+**The issue**
+Seventeen files built their database commands by taking whatever field names arrived in
+the request and pasting them straight into the command. The *values* were handled safely.
+The *column names* were not - and they cannot be, by the usual method.
+
+Two problems came out of that. A crafted field name could break out and rewrite the
+command entirely. And even with ordinary field names, the sender got to choose which
+columns were written, including ones the app never meant to expose.
+
+**What we did**
+Added one check that every field name is a real column of the table it is being written
+to, reading the actual list of columns from the database itself.
+
+We chose that over writing seventeen lists of allowed fields by hand. A hand-written list
+has to be kept in step with the database forever, and when it falls behind it fails by
+*rejecting valid data* - which looks like an unrelated bug, and tends to get "fixed" by
+widening the list until it stops complaining. Reading the real columns cannot fall behind,
+and it makes the attack impossible outright, because no real column is ever named
+`description = 0 WHERE 1=1 --`.
+
+**Remarks**
+An unknown field is now **refused**, not quietly ignored. A save that silently drops half
+of what you sent while reporting success is worse than one that fails, because you find
+out much later.
+
+This does not go as far as "customers may change their phone number but never their
+loyalty points". That needs a decision per screen about what each one is allowed to
+touch, which is design work rather than a patch. It is on the backlog as such.
+
+**Proof it works**
+The attack string is refused with a clear message. An unexpected `is_admin` field is
+refused. Ordinary creating and updating still work normally.
+
+---
+
+## 3.4 - The backlog was describing a project that no longer existed
+
+**The issue**
+`REMEDIATION_BACKLOG.md` still listed around 25 items that had already been fixed. They
+were closed by the merge as a side effect rather than as deliberate tasks, and nobody
+went back to tick them off.
+
+This is worth writing down because it is the *same mistake as the original status report*,
+just pointing the other way. That report claimed things were finished when they had never
+run. This file claimed things were outstanding when they were long done. Both came from
+describing the work from memory instead of checking it.
+
+It also had a real cost. The single biggest security item on the list - "nothing checks
+who you are" - was estimated at several days. That estimate was written when the relevant
+file was empty. By last week the file was written and tested, and all that was left was
+switching it on, which took an afternoon. The number in the document was scaring people
+away from the cheapest important fix on the board.
+
+**What we did**
+Went through it and marked off what is genuinely done, by checking the code rather than
+recalling it. Replaced the summary table with counts taken by counting the rows.
+
+**Remarks**
+It now reads: **68 found, 37 closed, 31 open.**
+
+Two of the four remaining critical items - rotating the leaked database passwords and
+removing them from the project's history - can only be done by whoever owns the
+repository. They are not ours to close.
+
+The largest remaining block by far is screens that have not been designed yet. That is
+roughly 70% of all the work left, and it is genuinely different in kind from everything
+above: it needs product decisions, not integration.
+
+
 ## How to run it now
 
 ```bash

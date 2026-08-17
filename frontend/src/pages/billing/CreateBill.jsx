@@ -11,8 +11,8 @@ import {
 
 import { toast } from "react-hot-toast";
 
-// services/api, not api/axios: this is the instance that attaches the auth
-// token and targets /api/v1. See S3-9 — the two should be merged.
+// services/api is the app's only axios instance: it attaches the auth token
+// and targets /api/v1 (S3-9).
 import api from "../../services/api";
 
 /*

@@ -81,6 +81,7 @@ import limiter from "./middleware/rateLimiter.js";
  * MERGE_LOG.md.
  * ------------------------------------------------------------------ */
 import authRoutes from "./modules/auth/auth.routes.js";
+import authMiddleware from "./middleware/auth.js";
 
 /* ------------------------------------------------------------------ *
  * HR — phase C.
@@ -152,7 +153,33 @@ app.use("/uploads", express.static("uploads"));
  * ------------------------------------------------------------------ */
 const api = express.Router();
 
+/*
+ * Auth mounts FIRST, and guards itself internally: /login is public and rate
+ * limited, everything else in it already requires a token.
+ */
 api.use("/auth", authRoutes);
+
+/* ------------------------------------------------------------------ *
+ * S1-3 — everything below this line requires a valid token.
+ *
+ * Until now exactly one route in the application checked who you were.
+ * Bills, payments, customer KYC documents, stock and the cash book were all
+ * readable and writable by anyone who could reach the port. The only thing
+ * standing in the way was that the server binds to loopback, which is a
+ * deployment accident rather than a security control.
+ *
+ * This is deliberately mounted on the router rather than added route by
+ * route. Forty-one route files, each needing the middleware in its own list,
+ * is forty-one chances to forget one — and a forgotten route fails OPEN,
+ * silently, and looks perfectly fine in testing. Here, being protected is the
+ * default and an exemption has to be written above this line where it is
+ * visible.
+ *
+ * Note this does NOT cover /uploads, which is served off the app rather than
+ * this router and is still public. See the note there.
+ * ------------------------------------------------------------------ */
+api.use(authMiddleware);
+
 api.use("/employees", employeeRoutes);
 api.use("/departments", departmentRoutes);
 api.use("/attendance", attendanceRoutes);

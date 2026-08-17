@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.js';
+import { assertColumns } from '../../utils/columnGuard.js';
 
 class CustomerNoteRepository {
     async create(noteData) {
@@ -9,6 +10,7 @@ class CustomerNoteRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('customer_notes', fields);
         const values = definedEntries.map(([, value]) => value);
         const placeholders = fields.map(() => '?').join(', ');
 
@@ -36,6 +38,7 @@ class CustomerNoteRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('customer_notes', fields);
         if (fields.length === 0) return 0;
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');

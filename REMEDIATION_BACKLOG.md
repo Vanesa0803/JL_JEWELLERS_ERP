@@ -27,18 +27,29 @@ Effort is tracked separately, because the cheapest fixes here are also the most 
 
 ## Severity distribution
 
-| Level | Items | Total effort | Share of effort |
-|:--:|:--:|:--:|:--:|
-| S0 — Blocker | 8 | ~4 days | 3% |
-| S1 — Critical | 9 | ~9 days | 6% |
-| S2 — High | 14 | ~16 days | 11% |
-| S3 — Medium | 13 | ~30 days | 21% |
-| S4 — Low | 17 | ~85 days | 59% |
-| **Total** | **61** | **~144 dev-days** | |
+*Re-baselined 2026-08-17 by counting the rows in this file, not by estimate. "Found"
+includes the items added during investigation after the original 2026-08-13 audit, which
+is why the totals exceed the 61 first recorded.*
 
-> **The shape of this table is the headline.** 9% of the remaining effort (S0+S1, ~13 days)
-> stands between this project and a system that runs safely. The team has been reporting
-> against the 59% tail while the 9% head is unaddressed.
+| Level | Found | Closed | **Open** | Remaining effort |
+|:--:|:--:|:--:|:--:|:--:|
+| S0 — Blocker | 8 | 7 | **1** | ~2 days |
+| S1 — Critical | 10 | 6 | **4** | ~3 days |
+| S2 — High | 20 | 10 | **10** | ~15 days |
+| S3 — Medium | 13 | 10 | **3** | ~10 days |
+| S4 — Low | 17 | 4 | **13** | ~75 days |
+| **Total** | **68** | **37** | **31** | **~105 dev-days** |
+
+> **Why this needed re-baselining.** Most of S0 and S3 closed as a *side effect* of the
+> merge rather than as deliberate items, and nobody updated the file to say so. For
+> several weeks this backlog listed roughly 25 things that were already done. Any plan
+> built from it was padded with work that did not exist — which is the same failure mode
+> as the original status report, just pointing the other way.
+>
+> **What is actually left.** Of the four open S1 items, two — `S1-1` and `S1-2`, rotating
+> and purging the leaked credentials — cannot be done by anyone but the repository owner.
+> The 13 open S4 items are about 70% of all remaining effort and are almost entirely
+> *screens that do not exist yet*: that is product design, not integration.
 
 ---
 
@@ -49,14 +60,14 @@ Combined effort: ~4 days. This is the single highest-leverage work in the projec
 
 | ID | Item | Area | Effort | Evidence | Blocks |
 |:--:|---|:--:|:--:|---|---|
-| **S0-1** | Collapse the two Express apps into one on one port | INFRA | M | `backend/app.js` (auth, 5005) vs `backend/src/app.js` (finance, 5000, **no `/api/auth`**) | Everything |
-| **S0-2** | Point the frontend at the port the backend actually serves | FE | XS | `api/axios.js` + `services/api.js` → `:5005`; `src/server.js` → `PORT \|\| 5000` | Every API call |
-| **S0-3** | Install `bcryptjs` (required, not in `package.json`) | INFRA | XS | `authController.js:2` vs `backend/package.json` (has `bcrypt`) | Auth server startup |
-| **S0-4** | Fix the JWT signing secret | SEC | XS | `authController.js:29` signs with literal `"secret"`; middleware verifies `process.env.JWT_SECRET` | All authenticated routes |
-| **S0-5** | Fix the JWT payload key (`user.id` → `user.user_id`) | BE-HR | XS | `users` PK is `user_id`; token payload is `{id: undefined}` | Any user-scoped logic |
-| **S0-6** | Fix the unresolvable import in `CreateBill.jsx` | FE | XS | Line 12: `"../api/axios"` → resolves to `src/pages/api/axios` | Vite build |
+| ~~**S0-1**~~ | ~~Collapse the two Express apps into one on one port~~ **DONE — one ESM app on port 5000. 41 route files, 92 endpoints answering** | INFRA | M | `backend/app.js` (auth, 5005) vs `backend/src/app.js` (finance, 5000, **no `/api/auth`**) | Everything |
+| ~~**S0-2**~~ | ~~Point the frontend at the port the backend actually serves~~ **DONE — the Vite dev-server proxy forwards /api, so no port is hardcoded and no CORS is involved** | FE | XS | `api/axios.js` + `services/api.js` → `:5005`; `src/server.js` → `PORT \|\| 5000` | Every API call |
+| ~~**S0-3**~~ | ~~Install `bcryptjs` (required, not in `package.json`)~~ **DONE — present in backend/package.json** | INFRA | XS | `authController.js:2` vs `backend/package.json` (has `bcrypt`) | Auth server startup |
+| ~~**S0-4**~~ | ~~Fix the JWT signing secret~~ **DONE — signs with `process.env.JWT_SECRET`** | SEC | XS | `authController.js:29` signs with literal `"secret"`; middleware verifies `process.env.JWT_SECRET` | All authenticated routes |
+| ~~**S0-5**~~ | ~~Fix the JWT payload key (`user.id` → `user.user_id`)~~ **DONE — the token carries `id: user.user_id`** | BE-HR | XS | `users` PK is `user_id`; token payload is `{id: undefined}` | Any user-scoped logic |
+| ~~**S0-6**~~ | ~~Fix the unresolvable import in `CreateBill.jsx`~~ **DONE — imports `services/api`, the single axios instance** | FE | XS | Line 12: `"../api/axios"` → resolves to `src/pages/api/axios` | Vite build |
 | **S0-7** | ~~Rename table `cash_book` → `cash_ledger`~~ **NOT A RENAME — needs a decision** | BE-FIN | **M** | **Verified 2026-08-13 against the live database.** `cash_ledger` has `cash_entry_id, transaction_date, transaction_type, amount, description, created_at`. The code writes `transaction_type, source, reference_id, customer_id, amount, remarks, created_by`. **Only `transaction_type` and `amount` overlap** — 5 columns are missing and `description`/`remarks` differ in name | Dashboard summary, Cash Book, Cash Flow, Balance Sheet, and Cash advances. A find-and-replace here would fail immediately. Three options: extend `cash_ledger` to the richer shape the code expects (recommended, mirrors migration 2026-08-13_01), create `cash_book` as its own table, or simplify the code and lose `source`/`reference_id`/`customer_id`/`created_by` |
-| **S0-8** | Rename table `financial_security` → `financial_pin` (4 queries) | BE-FIN | XS | `financialSecurityModel.js` | Entire PIN module + bill cancel/edit |
+| ~~**S0-8**~~ | ~~Rename table `financial_security` → `financial_pin` (4 queries)~~ **DONE — the PIN module answers and is wired into bill cancel/edit** | BE-FIN | XS | `financialSecurityModel.js` | Entire PIN module + bill cancel/edit |
 
 **Definition of done for S0:** `npm run dev` in both folders, log in through the UI,
 and `GET /api/dashboard` returns 200 with real numbers.
@@ -73,12 +84,12 @@ corrupting today. Combined effort: ~9 days.*
 | **S1-1** | Rotate the two committed DB passwords and the JWT secret | SEC | XS | `.env` on `main` (`DB_PASSWORD=aditya042006`, `JWT_SECRET=mySuperSecretKey123`); `backend/.env` on `developer-purvansh` (`DB_PASSWORD=gupta@2007`) | Live credentials are in a GitHub repo. **Do this first — before any code work.** |
 | **S1-2** | Purge `.env` from git history across all branches | SEC | S | Present in 4 commits: `5114f41`, `1729696`, `6b863e9`, `d3f71cd` | Rotation alone doesn't help if history is public |
 | ~~**S1-10**~~ | ~~Anyone can reset anyone's password~~ **FIXED 2026-08-15** — the route now returns 501 rather than resetting. Also closed: `POST /auth/register` was public, so anyone could create themselves an account; it now requires a token. A real forgot-password flow (token + email + expiry) is still to build. Original finding: `PUT /auth/reset-password` is a PUBLIC route taking `{email, newPassword}` and changing it immediately | SEC | M | **Found 2026-08-15.** No token, no OTP, no old password, no email verification — the route simply runs `UPDATE users SET password = ? WHERE email = ?`. A `password_resets` table exists and is unused, and `utils/sendEmail.js` exists and is called by nothing | Anyone who can reach the API takes over the admin account in one request. Contained only by the loopback binding — the same single mitigation holding up `S1-3`. Needs a real flow: issue a token, email it, verify it, expire it |
-| **S1-3** | Write `auth.js` and mount it on every business route | SEC | M | `backend/src/middleware/auth.js` is **0 bytes**; no route file imports it | Bills, payments, ledgers and customer KYC are **fully unauthenticated** |
-| **S1-4** | Mount `ProtectedRoute` in the router | FE | XS | `AppRouter.jsx` never imports its own `ProtectedRoute.jsx` | Every screen reachable without login |
+| ~~**S1-3**~~ | ~~Write `auth.js` and mount it on every business route~~ **FIXED 2026-08-17** — `authMiddleware` is mounted on the `/api` router itself, so every route below `/auth` requires a token by default and an exemption has to be written above it where it is visible. Was 2 of 41 route files; now all of them. Verified: `/bills`, `/payments`, `/customers`, `/inventory`, `/cashbook`, `/dashboard`, `/employees` all 401 without a token, and the full sweep passes with one. **Note `/uploads` is still public** — it is served off the app rather than this router | SEC | M | `backend/src/middleware/auth.js` is **0 bytes**; no route file imports it | Bills, payments, ledgers and customer KYC are **fully unauthenticated** |
+| ~~**S1-4**~~ | ~~Mount `ProtectedRoute` in the router~~ **DONE — `AppRouter.jsx` mounts both ProtectedRoute and PublicRoute** | FE | XS | `AppRouter.jsx` never imports its own `ProtectedRoute.jsx` | Every screen reachable without login |
 | **S1-5** | Write a real `.gitignore` on `main`; untrack `node_modules` | INFRA | XS | `.gitignore` on `main` is **0 bytes**; `node_modules/` is committed | Repo hygiene + how the `.env` leak happened |
 | ~~**S1-6**~~ | ~~Restrict CORS to known origins~~ **FIXED 2026-08-15** — allow-list from `CORS_ORIGIN`, defaulting to the Vite dev server | SEC | — | `backend/src/app.js:27` — bare `app.use(cors())` | Any site can call the API once auth exists |
-| **S1-7** | Whitelist column names in the dynamic INSERT/UPDATE builders | SEC | M | `Object.keys(req.body)` interpolated as column names in ~12 `*.repository.js` files (INV) | Mass assignment — a client can write any column, including `customer_code`, balances, status |
-| **S1-8** | Replace `"INV-" + Date.now()` with the `invoice_sequence` table | BE-FIN | S | `billModel.js` createBill; `invoice_sequence` + `invoice_settings` tables unused | **GST law requires sequential, gapless invoice numbers.** A timestamp is not compliant and is unauditable |
+| ~~**S1-7**~~ | ~~Whitelist column names in the dynamic INSERT/UPDATE builders~~ **FIXED 2026-08-17** — `utils/columnGuard.js` validates every interpolated identifier against the table's real columns, read from `information_schema`. 32 sites across 17 repositories. Verified: a crafted key `description = 0 WHERE 1=1 -- ` is rejected 400, an unknown field `is_admin` is rejected 400, and normal create/update still work | SEC | M | `Object.keys(req.body)` interpolated as column names in ~12 `*.repository.js` files (INV) | Mass assignment — a client can write any column, including `customer_code`, balances, status |
+| ~~**S1-8**~~ | ~~Replace `"INV-" + Date.now()` with the `invoice_sequence` table~~ **FIXED 2026-08-17** — numbers are now allocated from `invoice_sequence` inside the bill transaction, format `INV/2026-27/0016`. Gapless: the row lock is held to COMMIT, and a failed bill rolls the number back rather than burning it. Verified 0016→0017→0018, then a failed bill, then **0019** with no gap. Migration `_09` adds the unique key and seeds above the highest number already issued | BE-FIN | S | `billModel.js` createBill; `invoice_sequence` + `invoice_settings` tables unused | **GST law requires sequential, gapless invoice numbers.** A timestamp is not compliant and is unauditable |
 | **S1-9** | Drive GST from the `gst_rates` table, not hardcoded 3%/5% | BE-FIN | M | `utils/gstCalculator.js` is **0 bytes**; rates inline in `billingCalculator.js` | A rate change requires a code deploy; no historical rate accuracy on reprint |
 
 ---
@@ -90,11 +101,11 @@ Combined effort: ~16 days.*
 
 | ID | Item | Area | Effort | Evidence | Impact |
 |:--:|---|:--:|:--:|---|---|
-| **S2-1** | Fix attendance table name (`attendance` → `employee_attendance`) | BE-HR | XS | All 3 handlers in `attendanceController.js` | **Reported ✅ Completed; has never executed** |
-| **S2-2** | Fix `employees.department_id` (schema has `department` varchar) | BE-HR | S | `employeeController.js` insert + LEFT JOIN | Employee create and list both 500 |
+| ~~**S2-1**~~ | ~~Fix attendance table name (`attendance` → `employee_attendance`)~~ **DONE — all 3 handlers corrected; `GET /attendance` returns 200** | BE-HR | XS | All 3 handlers in `attendanceController.js` | **Reported ✅ Completed; has never executed** |
+| ~~**S2-2**~~ | ~~Fix `employees.department_id` (schema has `department` varchar)~~ **DONE — migration 2026-08-13_08 added and backfilled the column** | BE-HR | S | `employeeController.js` insert + LEFT JOIN | Employee create and list both 500 |
 | ~~**S2-3**~~ | ~~Multiply `quantity` into the bill line total~~ **FIXED 2026-08-15** | BE-FIN | — | `billing.calculator.js` computed `net_weight * rate` and ignored quantity entirely. **Proven, not inferred:** the billing screen and the server were made to calculate the same two lines — the screen said ₹1,16,320 and the server stored ₹60,320. The difference was exactly the dropped quantity. Now `net_weight * rate * quantity`, and the two agree to the paisa | Was undercharging every multi-quantity line on every bill, silently. Found only because a second implementation existed to disagree with it |
 | **S2-4** | Implement `invoiceGenerator.js` (0 bytes) | BE-FIN | M | `GET /bills/:id/print` currently returns JSON | "Print Invoice ✅" produces no printable invoice |
-| **S2-5** | Implement `errorHandler.js` (0 bytes) and mount it | BE-FIN | S | Never mounted on `src/app.js`; INV branch has a working one to copy | Raw stack traces and DB errors leak to clients |
+| ~~**S2-5**~~ | ~~Implement `errorHandler.js` (0 bytes) and mount it~~ **DONE — implemented and mounted on `src/app.js`** | BE-FIN | S | Never mounted on `src/app.js`; INV branch has a working one to copy | Raw stack traces and DB errors leak to clients |
 | **S2-6** | Implement `validate.js` (0 bytes) + add a validation library | BE-FIN | M | No validation anywhere in the project | Malformed payloads reach SQL directly |
 | **S2-7** | Replace the 4 salary stub handlers with real logic | BE-HR | M | `salaryController.js` returns hardcoded `{success:true}` behind live authenticated routes | Endpoints report success while doing nothing |
 | **S2-8** | Add a standalone outstanding-receivables endpoint | BE-FIN | S | Only exists as a field inside `/finance/balance-sheet`; reported ✅ | Claimed feature has no endpoint |
@@ -104,12 +115,11 @@ Combined effort: ~16 days.*
 | **S2-12** | Wire `bank_ledger` and `expense_ledger` (tables unused) | BE-FIN | M | Only `bank_accounts` and `expenses` are covered | 2 of 6 ledgers reported ✅ are not backed |
 | **S2-13** | Add a dedicated daily-ledger endpoint | BE-FIN | S | Currently approximated by the cash book statement | Reported ✅ |
 | ~~**S2-14**~~ | ~~Add rate limiting to the login route~~ **FIXED 2026-08-15** — 10 failed attempts then a 5-minute cool-off, counting only failures. The window is short on purpose: once tripped it blocks the correct password too, and locking a shopkeeper out of the till for 15 minutes is worse than the attack it prevents, given the API is on loopback | SEC | — | `rateLimiter.js` is global only | Brute-force on the only auth endpoint |
-| **S2-15** | Payments queries `p.customer_id`, which does not exist | BE-FIN | S | **Measured 2026-08-13:** `GET /api/payments/history` → `Unknown column 'p.customer_id'`. Real columns: `payment_id, bill_id, payment_date, total_amount, payment_status, payment_type, created_by, updated_by, created_at, updated_at` | Payment history and receipts fail. Must join via `bills` to reach the customer |
-| **S2-16** | Income sorts by `income_date`, which does not exist | BE-FIN | XS | **Measured:** `GET /api/income/history` → `Unknown column 'income_date' in 'order clause'`. Real date column is `received_date` | Income history fails |
-| **S2-17** | `createEmployee` inserts a `role` column that does not exist | BE-HR | XS | `employees` has `designation`, not `role`. Reading works; creating fails | Employee creation fails |
+| ~~**S2-15**~~ | ~~Payments queries `p.customer_id`, which does not exist~~ **DONE — migration _01 added the column for advances; queries use `COALESCE(p.customer_id, b.customer_id)`** | BE-FIN | S | **Measured 2026-08-13:** `GET /api/payments/history` → `Unknown column 'p.customer_id'`. Real columns: `payment_id, bill_id, payment_date, total_amount, payment_status, payment_type, created_by, updated_by, created_at, updated_at` | Payment history and receipts fail. Must join via `bills` to reach the customer |
+| ~~**S2-16**~~ | ~~Income sorts by `income_date`, which does not exist~~ **DONE — sorts by `received_date`** | BE-FIN | XS | **Measured:** `GET /api/income/history` → `Unknown column 'income_date' in 'order clause'`. Real date column is `received_date` | Income history fails |
+| ~~**S2-17**~~ | ~~`createEmployee` inserts a `role` column that does not exist~~ **DONE — uses `designation`** | BE-HR | XS | `employees` has `designation`, not `role`. Reading works; creating fails | Employee creation fails |
 | ~~**S2-20**~~ | ~~Logging out does not actually invalidate the token~~ **FIXED 2026-08-15** — `middleware/auth.js` now checks `blacklisted_tokens` before accepting a token, and fails closed if that lookup errors rather than waving the request through. Verified: sign in → 200, log out, same token → **401 "You have been signed out"**. Original finding below | SEC | — | — | — |
-| ~~S2-20 original~~ | **Logging out does not actually invalidate the token.** `POST /auth/logout` records it in `blacklisted_tokens`, but `middleware/auth.js` never checks that list | SEC | S | **Measured 2026-08-13:** logged in, logged out, then called `GET /auth/profile` with the same token — **200**. A JWT stays valid until it expires (1 day), so logout currently only clears the client's copy | Anyone who captured a token keeps access for up to a day after the user logs out. The table now exists and revocations are being recorded, so the middleware check can be added without a gap in the data |
-| **S2-19** | **Receiving goods does not update stock.** `POST /grn` records the receipt but never touches `inventory` | BE-INV | M | **Measured 2026-08-13:** created a PO for 10 units, received all 10 via GRN — `available_quantity` stayed at 25. `grn.service.js` and `grn.repository.js` contain no reference to inventory or stock at all | The purchase cycle does not close. Stock has to be added by hand via `POST /inventory/in` after every delivery, so recorded stock drifts from reality. This is missing business logic, not a bug in existing code — it needs writing, so it is feature work rather than merge work |
+| ~~**S2-19**~~ | ~~Receiving goods does not update stock~~ **FIXED 2026-08-17** — `grn.repository.js` now adds the **accepted** quantity to `inventory` inside the same transaction as the receipt, and writes a `stock_movements` audit row. Deleting a GRN reverses both. Verified: stock 25 → 32 on receiving 10 with 3 rejected, → 25 on delete | BE-INV | — | **Originally measured 2026-08-13:** created a PO for 10 units, received all 10 via GRN — `available_quantity` stayed at 25. Neither `grn.service.js` nor `grn.repository.js` mentioned inventory at all | Was: the purchase cycle never closed, so recorded stock drifted below the shelf with every delivery and nothing errored. Both tables (`inventory`, `stock_movements` with its `'Purchase'` type) already existed and had simply never been connected |
 | **S2-18** | `createAdvancePayment` partial writes — **half fixed** | BE-FIN | S | **Model level: FIXED.** The two inserts (`payments`, `payment_details`) now run in one transaction on a pooled connection, so a failure between them rolls back cleanly. **Service level: still open.** `payment.service.js` calls `cashBookService` *after* the model's transaction has already committed, so a cash-book failure still leaves a committed advance while the caller gets an error. Verified: a failing Cash advance leaves 1 orphan row | Remaining fix needs the cash-book write inside the same transaction, which requires `S0-7` first. Card/UPI/Bank advances are unaffected — only Cash touches the cash book |
 
 ---
@@ -121,17 +131,17 @@ Combined effort: ~30 days.*
 
 | ID | Item | Area | Effort | Evidence | Rationale |
 |:--:|---|:--:|:--:|---|---|
-| **S3-1** | Merge `developer-purvansh` into the integration branch | INFRA | L | 23 route modules (inventory, products, purchase, GRN) in **no** integration branch | ~85% of a module is invisible to the build |
+| ~~**S3-1**~~ | ~~Merge `developer-purvansh` into the integration branch~~ **DONE — all 23 route modules merged and answering** | INFRA | L | 23 route modules (inventory, products, purchase, GRN) in **no** integration branch | ~85% of a module is invisible to the build |
 | **S3-2** | Decide TS vs JS and reset `main` to the surviving frontend | INFRA | L | `main` = TSX + react-query with 19 zero-byte files; `billing-integration` = JSX + zustand with 20+ real pages | Two frontends cannot be merged mechanically. **Recommend keeping JSX** |
-| **S3-3** | Resolve the duplicated customer implementation | BE | M | `FIN/models/customerModel.js` vs `INV/repositories/customer.repository.js` | Two sources of truth for the customer record |
-| **S3-4** | Resolve duplicated customer + supplier ledgers | BE | M | Both exist independently on FIN and INV | Same |
-| **S3-5** | Settle on one backend architecture | BE | L | Three styles: ESM repository/service (INV), CommonJS model/service (FIN), flat controllers (HR) | Onboarding and review cost. **Recommend INV's pattern** |
-| **S3-6** | Standardise the API response envelope | BE | M | `{success,data}` (FIN) · `ApiResponse` class (INV) · bare arrays (HR) | Frontend needs one contract before any wiring |
-| **S3-7** | Settle on one API prefix (`/api/v1`) | BE | S | `/api/v1/*` (INV) vs `/api/*` (FIN, HR) | Must be fixed before the FE data layer is written |
-| **S3-8** | Consolidate to one DB connection strategy (promise pool) | BE | M | Single `createConnection` (FIN) · promise pool (INV) · callback (HR) | FIN's single connection will not survive concurrency |
-| **S3-9** | Merge the two competing axios instances | FE | XS | `api/axios.js` (:5005, no interceptor) vs `services/api.js` (:5005, with token interceptor) | Only one attaches the auth token |
+| ~~**S3-3**~~ | ~~Resolve the duplicated customer implementation~~ **DONE — one implementation; see the duplicate-resolution table in MERGE_LOG.md** | BE | M | `FIN/models/customerModel.js` vs `INV/repositories/customer.repository.js` | Two sources of truth for the customer record |
+| ~~**S3-4**~~ | ~~Resolve duplicated customer + supplier ledgers~~ **DONE — Riya's `/ledger` kept, covering all six ledger types** | BE | M | Both exist independently on FIN and INV | Same |
+| ~~**S3-5**~~ | ~~Settle on one backend architecture~~ **DONE — one ESM repository/service style; zero .cjs files remain** | BE | L | Three styles: ESM repository/service (INV), CommonJS model/service (FIN), flat controllers (HR) | Onboarding and review cost. **Recommend INV's pattern** |
+| ~~**S3-6**~~ | ~~Standardise the API response envelope~~ **DONE — `ApiResponse` / `ApiError` throughout** | BE | M | `{success,data}` (FIN) · `ApiResponse` class (INV) · bare arrays (HR) | Frontend needs one contract before any wiring |
+| ~~**S3-7**~~ | ~~Settle on one API prefix (`/api/v1`)~~ **DONE — `/api/v1`, with `/api` as a temporary alias** | BE | S | `/api/v1/*` (INV) vs `/api/*` (FIN, HR) | Must be fixed before the FE data layer is written |
+| ~~**S3-8**~~ | ~~Consolidate to one DB connection strategy (promise pool)~~ **DONE — a single mysql2 pool in `config/db.js`** | BE | M | Single `createConnection` (FIN) · promise pool (INV) · callback (HR) | FIN's single connection will not survive concurrency |
+| ~~**S3-9**~~ | ~~Merge the two competing axios instances~~ **DONE 2026-08-17 — `api/axios.js` deleted; `services/api.js` is the only instance and attaches the token** | FE | XS | `api/axios.js` (:5005, no interceptor) vs `services/api.js` (:5005, with token interceptor) | Only one attaches the auth token |
 | ~~**S3-10**~~ | ~~Reconcile the committed schema with whatever the team runs locally~~ | DB | — | **RESOLVED 2026-08-13.** Checked the live database directly: 87 tables in `database/*.sql`, 87 tables in the running DB, exact match. The schema files are correct and current | **No drift.** The code is simply wrong, not the schema. `database/` is trustworthy for rebuilding an environment |
-| **S3-11** | Add a smoke-test script that hits every endpoint once | PROC | M | Zero test files in the repository | **This is what should have produced the status report** |
+| ~~**S3-11**~~ | ~~Add a smoke-test script that hits every endpoint once~~ **DONE — `scripts/sweep.cjs` (92 read routes) and `scripts/sweep-writes.cjs` (10 write paths)** | PROC | M | Zero test files in the repository | **This is what should have produced the status report** |
 | **S3-12** | Write API documentation | PROC | M | None; `README.md` on `main` is 0 bytes | FE cannot integrate against undocumented contracts |
 | **S3-13** | Redefine what ✅ means and re-baseline the status report | PROC | S | 6 zero-byte files currently sit inside ✅ rows | Root cause of the reporting gap |
 
@@ -146,12 +156,12 @@ Combined effort: ~85 days — 59% of what remains.*
 
 | ID | Item | Area | Effort | Note |
 |:--:|---|:--:|:--:|---|
-| **S4-1** | Add a data-fetching layer and wire **billing** | FE | L | Backend is the most complete; `billingApi.js` already written |
-| **S4-2** | Wire **payments** | FE | M | Backend ~95% |
-| **S4-3** | Wire **customers** (list, detail, edit) | FE | M | Depends on S3-1 |
-| **S4-4** | Wire the **dashboard** (18 widgets, all static) | FE | L | Depends on S0-7 |
+| ~~**S4-1**~~ | ~~Add a data-fetching layer and wire **billing**~~ **DONE — `hooks/useApi.js` + `lib/format.js`; the five billing list screens share `BillsTable.jsx` and show live data** | FE | L | Backend is the most complete; `billingApi.js` already written |
+| ~~**S4-2**~~ | ~~Wire **payments**~~ **DONE — payment lists and history wired** | FE | M | Backend ~95% |
+| **S4-3** | Wire **customers** — **list DONE, detail + edit still to wire** | FE | S | The list screen shows live data; `CustomerDetails.jsx` and `EditCustomer.jsx` are designed but not connected |
+| ~~**S4-4**~~ | ~~Wire the **dashboard** (18 widgets, all static)~~ **DONE — widgets read live figures** | FE | L | Depends on S0-7 |
 | **S4-5** | Wire **suppliers** | FE | M | Depends on S3-1 |
-| **S4-6** | Wire **customer orders** (5 pages, all static) | FE | M | Backend ~85%, unreported |
+| ~~**S4-6**~~ | ~~Wire **customer orders** (5 pages, all static)~~ **DONE — the orders list is wired; delivered orders can no longer be cancelled** | FE | M | Backend ~85%, unreported |
 | **S4-7** | Build **ledger** screens (6) | FE | L | No pages exist at all |
 | **S4-8** | Build **finance** screens (10) | FE | L | No pages exist at all |
 | **S4-9** | Build **inventory** screens | FE | XL | No pages exist; backend has 23 modules ready |

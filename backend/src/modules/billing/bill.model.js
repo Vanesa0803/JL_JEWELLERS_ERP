@@ -1,4 +1,5 @@
 import connection, { callbackPool } from "../../config/db.js";
+import { allocateInvoiceNumber } from "./invoiceNumber.js";
 
 /**
  * Save Bill and Bill Items.
@@ -48,10 +49,16 @@ const createBill = (billData) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
-            const invoiceNumber =
-                "INV-" + Date.now();
+            // The invoice number is allocated INSIDE this transaction, on this
+            // connection. That is deliberate — see invoiceNumber.js. It used
+            // to be "INV-" + Date.now(), which GST law does not accept (S1-8).
+            allocateInvoiceNumber(connection, (invoiceError, invoiceNumber) => {
 
-            connection.query(
+              if (invoiceError) {
+                  return abort(invoiceError);
+              }
+
+              connection.query(
 
                 billQuery,
 
@@ -178,7 +185,9 @@ const createBill = (billData) => {
 
                 }
 
-            );
+              );
+
+            });
 
         });
 

@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.js';
+import { assertColumns } from '../../utils/columnGuard.js';
 
 class PurityRepository {
     async create(purityData) {
@@ -9,6 +10,7 @@ class PurityRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('purity', fields);
         const values = definedEntries.map(([, value]) => value);
         const placeholders = fields.map(() => '?').join(', ');
 
@@ -42,6 +44,7 @@ class PurityRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('purity', fields);
         if (fields.length === 0) return 0;
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');

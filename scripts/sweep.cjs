@@ -3,8 +3,46 @@
  * recorded baseline, so a regression is obvious.
  *
  * Usage: node sweep.cjs [baseUrl]
+ *
+ * Since S1-3 every route below /auth requires a token, so this signs in first
+ * and sends it on every call. If the login fails the sweep stops rather than
+ * running on: 91 routes returning 401 would print as 91 regressions and bury
+ * the one line that actually explains why.
+ *
+ * Override the credentials with SWEEP_EMAIL / SWEEP_PASSWORD if the seeded
+ * admin has been changed.
  */
 const BASE = process.argv[2] || "http://127.0.0.1:5000/api/v1";
+
+const EMAIL = process.env.SWEEP_EMAIL || "admin@jljewellers.com";
+const PASSWORD = process.env.SWEEP_PASSWORD || "Admin@123";
+
+async function signIn() {
+  let res;
+  try {
+    res = await fetch(BASE + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+    });
+  } catch (error) {
+    throw new Error(`cannot reach ${BASE} — is the backend running? (${error.message})`);
+  }
+
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(
+      `login failed (${res.status}): ${body.message || "no message"}` +
+        (res.status === 429 ? "\n  The login limiter is tripped. Wait 5 minutes." : "")
+    );
+  }
+
+  const token = body.data?.token || body.token;
+  if (!token) throw new Error("login returned 200 but no token was in the response");
+
+  return token;
+}
 
 const BASELINE = {
   "GET /bills": 200,
@@ -13,11 +51,12 @@ const BASELINE = {
   "GET /customer-orders": 200,
   "GET /makers": 200,
   "GET /gold-schemes/types": 200,
-  // HR — phase C. /departments is deliberately absent: it is the ONE route in
-  // the whole API that requires a token, so an unauthenticated sweep gets 401.
-  // That inconsistency is itself the point of S1-3 — every other route here is
-  // wide open.
+  // HR — phase C. /departments used to be excluded here: it was the ONE route
+  // in the whole API that required a token, so an unauthenticated sweep got a
+  // 401 from it. S1-3 made every route work that way, so the sweep now signs
+  // in and this can be covered like anything else.
   "GET /employees": 200,
+  "GET /departments": 200,
   "GET /attendance": 200,
   // Unblocked by migrations 2026-08-13_02 (cash_ledger) and _03 (income /
   // expenses). All were failing before the finance module was merged.
@@ -133,13 +172,24 @@ const short = (s) => String(s).replace(/\s+/g, " ").slice(0, 58);
   const rows = [];
   let regressions = 0;
 
+  let token;
+  try {
+    token = await signIn();
+    console.log(`signed in as ${EMAIL}`);
+  } catch (error) {
+    console.error("\nSWEEP ABORTED: " + error.message + "\n");
+    process.exit(2);
+  }
+
+  const authHeader = { Authorization: `Bearer ${token}` };
+
   for (const key of Object.keys(BASELINE)) {
     const [method, route] = key.split(" ");
     let actual;
     let detail = "";
 
     try {
-      const res = await fetch(BASE + route, { method });
+      const res = await fetch(BASE + route, { method, headers: authHeader });
       const body = await res.text();
 
       if (res.ok) {

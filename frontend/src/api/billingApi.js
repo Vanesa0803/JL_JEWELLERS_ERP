@@ -1,4 +1,10 @@
-import api from "./axios";
+// services/api is now the ONLY axios instance in the app (S3-9).
+//
+// This file used to import ./axios, a second instance that attached no auth
+// token and targeted bare /api. Once every route requires a token (S1-3),
+// anything built on that instance would have started returning 401 — so the
+// duplicate is gone rather than left as a trap for whoever used it next.
+import api from "../services/api";
 
 export const createBill = async (billData) => {
     const response = await api.post("/bills", billData);

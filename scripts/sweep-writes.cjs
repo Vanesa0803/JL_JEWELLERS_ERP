@@ -29,10 +29,51 @@
  */
 const BASE = process.argv[2] || "http://127.0.0.1:5000/api/v1";
 
+/*
+ * Since S1-3 every write route requires a token. signIn() below fills this in
+ * before any test runs; headers() is what every request uses.
+ */
+let TOKEN = null;
+
+const headers = () => ({
+  "Content-Type": "application/json",
+  ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+});
+
+const EMAIL = process.env.SWEEP_EMAIL || "admin@jljewellers.com";
+const PASSWORD = process.env.SWEEP_PASSWORD || "Admin@123";
+
+async function signIn() {
+  let res;
+  try {
+    res = await fetch(BASE + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+    });
+  } catch (error) {
+    throw new Error(`cannot reach ${BASE} — is the backend running? (${error.message})`);
+  }
+
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(
+      `login failed (${res.status}): ${body.message || "no message"}` +
+        (res.status === 429 ? "\n  The login limiter is tripped. Wait 5 minutes." : "")
+    );
+  }
+
+  const token = body.data?.token || body.token;
+  if (!token) throw new Error("login returned 200 but no token was in the response");
+
+  return token;
+}
+
 const post = async (route, body) => {
   const res = await fetch(BASE + route, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify(body),
   });
   const text = await res.text();
@@ -48,7 +89,7 @@ const post = async (route, body) => {
 const patch = async (route, body) => {
   const res = await fetch(BASE + route, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify(body),
   });
   const text = await res.text();
@@ -62,7 +103,7 @@ const patch = async (route, body) => {
 };
 
 const get = async (route) => {
-  const res = await fetch(BASE + route);
+  const res = await fetch(BASE + route, { headers: headers() });
   const text = await res.text();
   let parsed;
   try {
@@ -84,6 +125,14 @@ const line = (label, ok, detail) =>
   console.log("");
   console.log("WRITE-PATH SWEEP");
   console.log("-".repeat(78));
+
+  try {
+    TOKEN = await signIn();
+    console.log(`signed in as ${EMAIL}`);
+  } catch (error) {
+    console.error("\nSWEEP ABORTED: " + error.message + "\n");
+    process.exit(2);
+  }
 
   /* ---------------------------------------------------------------- *
    * Create a bill — exercises the transaction: bills row + bill_items
@@ -322,7 +371,7 @@ const line = (label, ok, detail) =>
   for (const id of created) {
     await fetch(`${BASE}/bills/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: headers(),
       body: JSON.stringify({ deleted_by: 1 }),
     }).catch(() => {});
   }

@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.js';
+import { assertColumns } from '../../utils/columnGuard.js';
 
 class PurchaseOrderRepository {
     async create(orderData, items) {
@@ -7,6 +8,7 @@ class PurchaseOrderRepository {
             await connection.beginTransaction();
 
             const orderFields = Object.keys(orderData);
+            await assertColumns('purchase_orders', orderFields);
             const orderValues = Object.values(orderData);
             const orderPlaceholders = orderFields.map(() => '?').join(', ');
             
@@ -102,6 +104,7 @@ class PurchaseOrderRepository {
             ([, value]) => value !== undefined
         );
         const fields = definedEntries.map(([key]) => key);
+        await assertColumns('purchase_orders', fields);
         if (fields.length === 0) return 0;
 
         const setClause = fields.map(field => `${field} = ?`).join(', ');
