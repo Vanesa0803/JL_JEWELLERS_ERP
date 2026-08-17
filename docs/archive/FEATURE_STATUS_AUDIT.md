@@ -1,5 +1,16 @@
 # JL Jewellers ERP — Verified Feature Status Audit
 
+> # ⚠️ OUT OF DATE — HISTORICAL SNAPSHOT
+>
+> This is what the code looked like on **2026-08-13**, before the merge completed.
+> It has **not** been updated since. Items it reports as broken — including the JWT
+> signing bug and the committed `.env` — are fixed, and its **📦 Stranded** category
+> is obsolete because those branches are now merged.
+>
+> **Do not use this as current status.** See
+> [START-HERE.md](../../START-HERE.md) and
+> [REMEDIATION_BACKLOG.md](../../REMEDIATION_BACKLOG.md).
+
 Audit date: 2026-08-13 · Branches reviewed: `main`, `billing-integration`, `developer-purvansh`, `developer-riya`, `developer-aditya`, `frontend-vanshika`, `auth-integration`
 
 This document is an independent, code-verified checklist. It records what the code

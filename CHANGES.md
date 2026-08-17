@@ -4,9 +4,9 @@ Every change made during the rebuild, in plain language.
 Format: **what was wrong → what we did → anything worth knowing.**
 
 Read alongside:
-- [FEATURE_STATUS_AUDIT.md](FEATURE_STATUS_AUDIT.md) — what is actually built
+- [START-HERE.md](START-HERE.md) — what is actually built, and what is missing
 - [REMEDIATION_BACKLOG.md](REMEDIATION_BACKLOG.md) — everything left to do, rated by severity
-- [MERGE_PLAN.md](MERGE_PLAN.md) — how to merge the four developers' branches together
+- [docs/archive/MERGE_PLAN.md](docs/archive/MERGE_PLAN.md) — how the branches were merged (history)
 
 ---
 

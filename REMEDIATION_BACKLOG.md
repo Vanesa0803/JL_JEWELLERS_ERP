@@ -1,6 +1,6 @@
 # JL Jewellers ERP — Severity-Rated Remediation Backlog
 
-Companion to [FEATURE_STATUS_AUDIT.md](FEATURE_STATUS_AUDIT.md) · Audit date: 2026-08-13
+Companion to [START-HERE.md](START-HERE.md) · Original audit date: 2026-08-13 · Re-baselined 2026-08-17
 
 Everything outstanding, rated by severity, with effort, dependencies and owner area.
 Item IDs are stable — use them in commits and PR titles.
@@ -133,7 +133,7 @@ Combined effort: ~30 days.*
 |:--:|---|:--:|:--:|---|---|
 | ~~**S3-1**~~ | ~~Merge `developer-purvansh` into the integration branch~~ **DONE — all 23 route modules merged and answering** | INFRA | L | 23 route modules (inventory, products, purchase, GRN) in **no** integration branch | ~85% of a module is invisible to the build |
 | **S3-2** | Decide TS vs JS and reset `main` to the surviving frontend | INFRA | L | `main` = TSX + react-query with 19 zero-byte files; `billing-integration` = JSX + zustand with 20+ real pages | Two frontends cannot be merged mechanically. **Recommend keeping JSX** |
-| ~~**S3-3**~~ | ~~Resolve the duplicated customer implementation~~ **DONE — one implementation; see the duplicate-resolution table in MERGE_LOG.md** | BE | M | `FIN/models/customerModel.js` vs `INV/repositories/customer.repository.js` | Two sources of truth for the customer record |
+| ~~**S3-3**~~ | ~~Resolve the duplicated customer implementation~~ **DONE — one implementation; see the duplicate-resolution table in docs/archive/MERGE_LOG.md** | BE | M | `FIN/models/customerModel.js` vs `INV/repositories/customer.repository.js` | Two sources of truth for the customer record |
 | ~~**S3-4**~~ | ~~Resolve duplicated customer + supplier ledgers~~ **DONE — Riya's `/ledger` kept, covering all six ledger types** | BE | M | Both exist independently on FIN and INV | Same |
 | ~~**S3-5**~~ | ~~Settle on one backend architecture~~ **DONE — one ESM repository/service style; zero .cjs files remain** | BE | L | Three styles: ESM repository/service (INV), CommonJS model/service (FIN), flat controllers (HR) | Onboarding and review cost. **Recommend INV's pattern** |
 | ~~**S3-6**~~ | ~~Standardise the API response envelope~~ **DONE — `ApiResponse` / `ApiError` throughout** | BE | M | `{success,data}` (FIN) · `ApiResponse` class (INV) · bare arrays (HR) | Frontend needs one contract before any wiring |

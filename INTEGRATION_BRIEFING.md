@@ -197,7 +197,7 @@ quickly. Do the dashboard first — one endpoint feeds eight widgets that alread
 
 ## 6. How to do the merge
 
-This is what you originally asked about. The full detail is in **`MERGE_PLAN.md`**; here
+This is what you originally asked about. The full detail is in **`docs/archive/MERGE_PLAN.md`**; here
 is the summary.
 
 ### Do not run `git merge` on the developer branches
@@ -434,10 +434,10 @@ you only test the API, you will make the same mistake.
 
 | Document | What is in it |
 |---|---|
-| `FEATURE_STATUS_AUDIT.md` | Every feature, checked against the code and the database |
+| `START-HERE.md` | **Start here.** Issues, the merge, current state, what is missing |
 | `REMEDIATION_BACKLOG.md` | Every item rated by severity — 68 found, 37 closed, 31 open. Struck-through rows are done |
-| `MERGE_PLAN.md` | The module-by-module merge plan. Historical now: the merge is finished |
-| `MERGE_LOG.md` | What was taken from which branch, and why |
+| `docs/archive/MERGE_PLAN.md` | The module-by-module merge plan. Historical: the merge is finished |
+| `docs/archive/MERGE_LOG.md` | What was taken from which branch, and why. Historical |
 | `CHANGES.md` | Everything changed so far, in plain language — start here |
 
 ---
