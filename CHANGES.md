@@ -950,6 +950,88 @@ roughly 70% of all the work left, and it is genuinely different in kind from eve
 above: it needs product decisions, not integration.
 
 
+## 3.5 - A fresh clone can now set itself up
+
+**The issue**
+Cloning this repo onto a new machine did not give you a working system, and
+nothing said so. `npm run dev` started the MySQL *process* and stopped there, so
+the server booted, printed "Started WITHOUT a database", and failed on every
+screen.
+
+Getting from there to something usable meant knowing four things nobody had
+written down: copy `.env.example` and invent a JWT secret; create the database
+by hand, because no SQL file creates it; run `database/01` to `07` in exactly
+that order; then apply all nine migrations. Get the order wrong and the schema
+half-loads, which is the worst outcome available - it looks like it worked
+until something specific breaks weeks later.
+
+**What we did**
+Three commands, each safe to run twice:
+
+    npm run db:install    # installs MySQL if the machine has none
+    npm run db:setup      # creates the database, loads everything, migrates
+    npm run dev           # starts it all
+
+Installing MySQL is deliberately **separate** from `npm run dev`. Installing a
+database server should never happen as a side effect of "run the app" - it
+writes outside the project, needs administrator rights, and on a machine that
+already has MySQL for something else it is the last thing anyone wants
+triggered automatically.
+
+`db:setup` records every file it applies, so running it again applies nothing
+and re-seeds nothing. That matters: re-running the sample data on a live
+database would duplicate every customer and bill in it.
+
+**Remarks - what running it actually found**
+The script was written in an afternoon. Testing it against a genuinely empty
+database took far longer, because it kept failing on things that had been
+broken all along and were invisible to everyone working from a database they
+had built by hand months ago.
+
+**1. Two schema files still contained unresolved merge conflicts.**
+`03_developer1_finance.sql` and `07_sample_data.sql` had `<<<<<<<` markers
+committed into them. Those are not valid SQL, so *neither file had ever been
+loadable*. Resolved against what the working database actually contains rather
+than by picking a branch: the kept side defines `financial_pin` and
+`cash_ledger`, which exist; the dropped side defined `financial_security` and
+`cash_book`, the older names the project deliberately moved away from. In the
+sample data both sides were kept, because only one of them seeds the `users`
+table.
+
+**2. Nobody could have logged in.**
+The seeded passwords were stored as **plaintext** - `admin123`, `riya123`. The
+login code compares with bcrypt, and bcrypt can never match a plaintext string,
+so the credentials printed in every document simply did not work on a fresh
+install. They are real hashes now. It was also teaching the wrong lesson in a
+file students read to learn the schema.
+
+**3. The database name was a lie.**
+Four files contained a literal `USE jl_jewellers_erp;`. Set `DB_NAME` to
+anything else and the load would switch databases partway through and write
+into `jl_jewellers_erp` regardless - possibly over a real one. Stripping it is
+what finally made that setting mean anything. The example file also said
+`JL_Jewellers_ERP`, which fails outright on Linux and macOS, where database
+names are case-sensitive.
+
+**4. The dumps carried replication state.**
+Three files were produced by `mysqldump` on a server with GTID replication on,
+so they set `GTID_PURGED` from the source server. That fails on any machine
+whose own GTID set overlaps, with an error that reads like file corruption.
+Stripped at load time.
+
+**5. MySQL was located by one hardcoded path.**
+`C:\Program Files\MySQL\MySQL Server 8.4\...` - correct on one machine,
+wrong on any with 8.0 or a different drive. Now searched properly, with a
+clear message pointing at `npm run db:install` when nothing is found.
+
+**Proof it works**
+Dropped the database entirely and rebuilt from nothing: 16 files applied, 95
+tables, 8 users, 20 customers, 15 products, 15 bills. Then pointed the app at
+it - login succeeded, the read sweep passed 92 routes with 0 regressions, and
+the write sweep passed 10 of 10. Running setup a second time applied 0 files.
+
+---
+
 ## How to run it now
 
 ```bash

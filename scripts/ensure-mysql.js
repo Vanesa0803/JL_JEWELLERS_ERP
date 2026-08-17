@@ -17,16 +17,22 @@
 const net = require("net");
 const { spawn } = require("child_process");
 const fs = require("fs");
+const { findMysqld, findDataDir } = require("./lib/find-mysql");
 
 const PORT = Number(process.env.DB_PORT) || 3306;
 const HOST = "127.0.0.1";
 
-const MYSQLD =
-  process.env.MYSQLD_PATH ||
-  "C:\\Program Files\\MySQL\\MySQL Server 8.4\\bin\\mysqld.exe";
-
-const DATADIR =
-  process.env.MYSQL_DATADIR || "C:\\ProgramData\\MySQL\\data";
+/*
+ * Located rather than hardcoded.
+ *
+ * These used to be literal paths to MySQL 8.4 under Program Files, which is
+ * correct on exactly one machine. lib/find-mysql.js checks MYSQLD_PATH, then
+ * PATH, then the usual install directories newest-version-first — so an 8.0
+ * install, a different drive, or a package-manager install all work without
+ * anyone editing this file.
+ */
+const MYSQLD = findMysqld();
+const DATADIR = findDataDir();
 
 const WAIT_TIMEOUT_MS = 60000;
 const POLL_INTERVAL_MS = 500;
@@ -62,16 +68,19 @@ async function main() {
 
   console.log(`[db] MySQL is not running. Starting it...`);
 
-  if (!fs.existsSync(MYSQLD)) {
-    console.error(`[db] Could not find mysqld at:\n      ${MYSQLD}`);
-    console.error(
-      `[db] Set MYSQLD_PATH to the correct location, or start MySQL yourself.`
-    );
+  if (!MYSQLD) {
+    console.error(`[db] No MySQL installation found on this machine.`);
+    console.error(`[db]`);
+    console.error(`[db]     Install it with:  npm run db:install`);
+    console.error(`[db]`);
+    console.error(`[db] If MySQL IS installed somewhere unusual, set MYSQLD_PATH`);
+    console.error(`[db] to the full path of mysqld and try again.`);
     process.exit(1);
   }
 
-  if (!fs.existsSync(DATADIR)) {
-    console.error(`[db] Could not find the MySQL data directory at:\n      ${DATADIR}`);
+  if (!DATADIR || !fs.existsSync(DATADIR)) {
+    console.error(`[db] Found mysqld at:\n      ${MYSQLD}`);
+    console.error(`[db] ...but could not find its data directory.`);
     console.error(`[db] Set MYSQL_DATADIR to the correct location.`);
     process.exit(1);
   }

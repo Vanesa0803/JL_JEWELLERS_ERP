@@ -1,6 +1,20 @@
 USE jl_jewellers_erp;
 
-<<<<<<< HEAD
+-- ---------------------------------------------------------------------
+-- Merge conflict resolved 2026-08-17.
+--
+-- This file was committed with unresolved conflict markers and had never
+-- been loadable as it stood.
+--
+-- Both sides were kept, because each held data the other did not. The
+-- developer-riya side is the ONLY source of the `users` rows -- without
+-- them nobody can log in at all -- and it also seeds bank_accounts and
+-- gst_details, both of which exist.
+--
+-- Dropped from that side: the cash_book inserts. That table does not
+-- exist; the schema uses cash_ledger (see S0-7).
+-- ---------------------------------------------------------------------
+
 -- =====================================================
 -- COMPANY DETAILS
 -- =====================================================
@@ -657,27 +671,6 @@ VALUES
 (15,16,'Bill',209090.00,0.00,209090.00,'Invoice INV000015'),
 (15,16,'Payment',0.00,100000.00,109090.00,'Partial Payment');
 
-=======
-INSERT INTO cash_book
-(
-    transaction_type,
-    source,
-    reference_id,
-    customer_id,
-    amount,
-    remarks,
-    created_by
-)
-VALUES
-(
-    'Cash In',
-    'Bill Payment',
-    42,
-    1,
-    69360,
-    'Bill Payment Received',
-    1
-);
 
 INSERT INTO bank_accounts
 (
@@ -709,55 +702,74 @@ VALUES
     'Uttar Pradesh'
 );
 
+-- ---------------------------------------------------------------------
+-- Passwords hashed 2026-08-17.
+--
+-- These were seeded as PLAINTEXT ('admin123', 'riya123', ...). The login code
+-- compares with bcrypt, and bcrypt can never match a plaintext string, so
+-- NOBODY COULD LOG IN on a fresh install -- the credentials in every document
+-- simply did not work.
+--
+-- They are now real bcrypt hashes. The plaintext behind each is unchanged from
+-- what was intended, EXCEPT the admin, which is Admin@123 to match the value
+-- used throughout the documentation and by both endpoint sweeps.
+--
+--     admin@jljewellers.com     Admin@123
+--     riya@jljewellers.com      riya123
+--     purvansh@jljewellers.com  purvansh123
+--     (and so on, name + 123)
+--
+-- Seeding plaintext passwords was also teaching the wrong lesson in a file
+-- students read to learn the schema.
+-- ---------------------------------------------------------------------
 INSERT INTO users
 (name, email, password, role, status)
 VALUES
 
 ('Admin User',
 'admin@jljewellers.com',
-'admin123',
+'$2b$10$ssjfSAJRPvSriARHKUmGH.J7NfQiUdrqgRryPYrEvNg8Wo/Njdvuy',
 'admin',
 'active'),
 
 ('Riya Singh',
 'riya@jljewellers.com',
-'riya123',
+'$2b$10$JCey1KhVNpZy6uERDAuN8et/IMbBwDrrjwbNspWXVbM8iUO/dX/1S',
 'finance',
 'active'),
 
 ('Purvansh Sharma',
 'purvansh@jljewellers.com',
-'purvansh123',
+'$2b$10$qmjNiUUz4ajYdcKrfY/.pe1OUtNF.zWA8Fs39GfKszi6qh54e49.O',
 'inventory',
 'active'),
 
 ('Solanki Patel',
 'solanki@jljewellers.com',
-'solanki123',
+'$2b$10$d6.5x1VtC3x8EU2mawTEU.L3Fd0XBmF/1ElYCJl2YQWCpH990bdoW',
 'manager',
 'active'),
 
 ('Rahul Verma',
 'rahul@jljewellers.com',
-'rahul123',
+'$2b$10$fYjrvJXCHslRri5DSVTqtuYHTrrjEG0Nvz3QjpRF0pkLoe0gmupdi',
 'sales',
 'active'),
 
 ('Priya Gupta',
 'priya@jljewellers.com',
-'priya123',
+'$2b$10$t1MXgmv6SFI7eEpSuf1ri.ElK9H9fQyZxWmE7eU6R.LEPInwmJMQe',
 'cashier',
 'active'),
 
 ('Nisha Sharma',
 'nisha@jljewellers.com',
-'nisha123',
+'$2b$10$h.pcjr0xEC3OQ3W7i9klZeHBmJ0t6yV0O8l3chfsLIeSnIzKKR3LG',
 'staff',
 'active'),
 
 ('Vivek Singh',
 'vivek@jljewellers.com',
-'vivek123',
+'$2b$10$k7Pz0FN9Z60rZkGohpB8gelXAPK4NscEMQ/ksGOnHATjbw9IQtNsm',
 'staff',
 'inactive');
->>>>>>> developer-riya
