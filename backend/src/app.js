@@ -36,6 +36,7 @@ import makerRoutes from "./modules/makers/maker.routes.js";
 import makerAssignmentRoutes from "./modules/makers/assignment.routes.js";
 import goldSchemeRoutes from "./modules/schemes/scheme.routes.js";
 import financialSecurityRoutes from "./modules/security/security.routes.js";
+import settingsRoutes from "./modules/settings/settings.routes.js";
 
 /* ------------------------------------------------------------------ *
  * Phase B — modules recovered from developer-purvansh.
@@ -179,6 +180,7 @@ api.use("/auth", authRoutes);
  * this router and is still public. See the note there.
  * ------------------------------------------------------------------ */
 api.use(authMiddleware);
+api.use("/settings", settingsRoutes);
 
 api.use("/employees", employeeRoutes);
 api.use("/departments", departmentRoutes);
