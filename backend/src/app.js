@@ -39,7 +39,7 @@ import financialSecurityRoutes from "./modules/security/security.routes.js";
 import metalRateRoutes from "./modules/metalRates/metalRate.routes.js";
 import bankLedgerRoutes from "./modules/finance/bankLedger.routes.js";
 import notificationRoutes from "./modules/notifications/notification.routes.js";
-
+import settingsRoutes from "./modules/settings/settings.routes.js";
 /* ------------------------------------------------------------------ *
  * Phase B — modules recovered from developer-purvansh.
  *
@@ -182,6 +182,7 @@ api.use("/auth", authRoutes);
  * this router and is still public. See the note there.
  * ------------------------------------------------------------------ */
 api.use(authMiddleware);
+api.use("/settings", settingsRoutes);
 
 api.use("/employees", employeeRoutes);
 api.use("/departments", departmentRoutes);
