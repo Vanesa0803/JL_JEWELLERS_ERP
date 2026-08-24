@@ -1,275 +1,181 @@
-import db from "../../config/db.js";
+import { pool } from "../../config/db.js";
 
-const createFinancialPin = (pinHash) => {
+/* ------------------------------------------------------------------ */
+/* PIN                                                               */
+/* ------------------------------------------------------------------ */
 
-    return new Promise((resolve, reject) => {
+const getPinByUserId = async (userId) => {
+    const [rows] = await pool.execute(
+        `
+        SELECT
+            pin_id,
+            user_id,
+            pin_hash,
+            failed_attempts,
+            last_attempt,
+            created_at
+        FROM security_pins
+        WHERE user_id = ?
+        LIMIT 1
+        `,
+        [userId]
+    );
 
-        db.query(
-
-            `
-            INSERT INTO financial_pin
-            (
-                pin_hash
-            )
-
-            VALUES
-            (?)
-            `,
-
-            [pinHash],
-
-            (err, result) => {
-
-                if (err) {
-
-                    return reject(err);
-
-                }
-
-                resolve(result);
-
-            }
-
-        );
-
-    });
-
+    return rows[0] || null;
 };
 
-const getFinancialSecurityWithHash = () => {
+const createPin = async (userId, pinHash) => {
+    const [result] = await pool.execute(
+        `
+        INSERT INTO security_pins
+        (
+            user_id,
+            pin_hash,
+            failed_attempts,
+            last_attempt
+        )
+        VALUES (?, ?, 0, NULL)
+        `,
+        [userId, pinHash]
+    );
 
-    return new Promise((resolve, reject) => {
-
-        db.query(
-            `
-            SELECT
-                pin_id,
-                pin_hash,
-                created_at
-            FROM financial_pin
-            ORDER BY pin_id
-            LIMIT 1
-            `,
-            (err, rows) => {
-
-                if (err) {
-                    return reject(err);
-                }
-
-                resolve(rows[0]);
-
-            }
-        );
-
-    });
-
+    return {
+        pin_id: result.insertId,
+        user_id: userId
+    };
 };
 
-const getFinancialSecurity = () => {
+const updatePin = async (userId, pinHash) => {
+    const [result] = await pool.execute(
+        `
+        UPDATE security_pins
+        SET
+            pin_hash = ?,
+            failed_attempts = 0,
+            last_attempt = NULL
+        WHERE user_id = ?
+        `,
+        [pinHash, userId]
+    );
 
-    return new Promise((resolve, reject) => {
-
-        db.query(
-
-            `
-            SELECT
-                pin_id,
-                created_at
-            FROM financial_pin
-            ORDER BY pin_id
-            LIMIT 1
-            `,
-
-            (err, rows) => {
-
-                if (err) {
-                    return reject(err);
-                }
-
-                resolve(rows[0]);
-
-            }
-
-        );
-
-    });
-
+    return result;
 };
 
-const updateFinancialPin = (pinHash) => {
+const recordFailedAttempt = async (userId) => {
+    const [result] = await pool.execute(
+        `
+        UPDATE security_pins
+        SET
+            failed_attempts = failed_attempts + 1,
+            last_attempt = NOW()
+        WHERE user_id = ?
+        `,
+        [userId]
+    );
 
-    return new Promise((resolve, reject) => {
-
-        db.query(
-
-            `
-            UPDATE financial_pin
-
-            SET
-
-                pin_hash = ?
-
-            WHERE pin_id = (SELECT pin_id FROM (SELECT MIN(pin_id) AS pin_id FROM financial_pin) AS current_pin)
-            `,
-
-            [pinHash],
-
-            (err, result) => {
-
-                if (err) {
-
-                    return reject(err);
-
-                }
-
-                resolve(result);
-
-            }
-
-        );
-
-    });
-
+    return result;
 };
 
-const getFinancialSettings = () => {
+const resetFailedAttempts = async (userId) => {
+    const [result] = await pool.execute(
+        `
+        UPDATE security_pins
+        SET
+            failed_attempts = 0,
+            last_attempt = NULL
+        WHERE user_id = ?
+        `,
+        [userId]
+    );
 
-    return new Promise((resolve, reject) => {
-
-        db.query(
-            `
-            SELECT
-                max_discount_percent,
-                max_rate_change_percent
-            FROM financial_settings
-            WHERE setting_id = 1
-            LIMIT 1
-            `,
-            (err, rows) => {
-
-                if (err) {
-                    return reject(err);
-                }
-
-                resolve(rows[0]);
-
-            }
-        );
-
-    });
-
+    return result;
 };
 
-const updateSecuritySettings = (
-    maxDiscount,
-    maxRateChange
+/* ------------------------------------------------------------------ */
+/* SECURITY SETTINGS                                                  */
+/* ------------------------------------------------------------------ */
+
+const getSecuritySettings = async () => {
+    const [rows] = await pool.execute(
+        `
+        SELECT
+            setting_id,
+            max_failed_attempts,
+            lock_minutes,
+            created_at,
+            updated_at
+        FROM security_settings
+        ORDER BY setting_id ASC
+        LIMIT 1
+        `
+    );
+
+    return rows[0] || null;
+};
+
+const updateSecuritySettings = async (
+    maxFailedAttempts,
+    lockMinutes
 ) => {
+    const settings = await getSecuritySettings();
 
-    return new Promise((resolve, reject) => {
-
-        db.query(
-
+    if (!settings) {
+        const [result] = await pool.execute(
             `
-            -- These are business settings, not properties of a PIN, so they
-            -- live in financial_settings, which already had
-            -- max_discount_percent. Only max_rate_change_percent had to be
-            -- added (migration 2026-08-13_04). The original code wrote both to
-            -- a financial_security table that never existed (S0-8).
-            UPDATE financial_settings
-
-            SET
-
-                max_discount_percent = ?,
-
-                max_rate_change_percent = ?
-
-            WHERE setting_id = 1
-            `,
-
-            [
-
-                maxDiscount,
-
-                maxRateChange
-
-            ],
-
-            (err, result) => {
-
-                if (err) {
-
-                    return reject(err);
-
-                }
-
-                resolve(result);
-
-            }
-
-        );
-
-    });
-
-};
-
-const createPinLog = (userId, action, status) => {
-
-    return new Promise((resolve, reject) => {
-
-        const query = `
-            INSERT INTO pin_logs
+            INSERT INTO security_settings
             (
-                user_id,
-                action,
-                status
+                max_failed_attempts,
+                lock_minutes
             )
-            VALUES (?, ?, ?)
-        `;
-
-        db.query(
-            query,
-            [userId, action, status],
-            (err, result) => {
-
-                if (err) {
-                    return reject(err);
-                }
-
-                resolve(result);
-
-            }
+            VALUES (?, ?)
+            `,
+            [
+                maxFailedAttempts,
+                lockMinutes
+            ]
         );
 
-    });
+        return {
+            setting_id: result.insertId,
+            max_failed_attempts: maxFailedAttempts,
+            lock_minutes: lockMinutes
+        };
+    }
 
+    await pool.execute(
+        `
+        UPDATE security_settings
+        SET
+            max_failed_attempts = ?,
+            lock_minutes = ?
+        WHERE setting_id = ?
+        `,
+        [
+            maxFailedAttempts,
+            lockMinutes,
+            settings.setting_id
+        ]
+    );
+
+    return await getSecuritySettings();
 };
 
 export {
-
-    createFinancialPin,
-
-    getFinancialSecurity,
-
-    getFinancialSecurityWithHash,
-
-    getFinancialSettings,
-
-    createPinLog,
-
-    updateFinancialPin,
-
+    getPinByUserId,
+    createPin,
+    updatePin,
+    recordFailedAttempt,
+    resetFailedAttempts,
+    getSecuritySettings,
     updateSecuritySettings
-
 };
 
-// Default export mirrors the named exports, so both
-// `import x from` and `import { a } from` work.
 export default {
-    createFinancialPin,
-    getFinancialSecurity,
-    getFinancialSecurityWithHash,
-    getFinancialSettings,
-    createPinLog,
-    updateFinancialPin,
+    getPinByUserId,
+    createPin,
+    updatePin,
+    recordFailedAttempt,
+    resetFailedAttempts,
+    getSecuritySettings,
     updateSecuritySettings
 };

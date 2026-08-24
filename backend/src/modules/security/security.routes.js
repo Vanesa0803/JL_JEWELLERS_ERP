@@ -1,43 +1,43 @@
-import express from "express";
+import { Router } from "express";
 import auth from "../../middleware/auth.js";
 
-const router = express.Router();
+import securityController from "./security.controller.js";
 
-import financialSecurityController from "./security.controller.js";
+const router = Router();
 
-// Create Financial PIN
+/* Create PIN */
 router.post(
     "/set-pin",
     auth,
-    financialSecurityController.createFinancialPin
+    securityController.createFinancialPin
 );
 
-// Verify Financial PIN
+/* Verify PIN */
 router.post(
     "/verify-pin",
     auth,
-    financialSecurityController.verifyFinancialPin
+    securityController.verifyFinancialPin
 );
 
-// Change Financial PIN
+/* Change PIN */
 router.patch(
     "/change-pin",
     auth,
-    financialSecurityController.changeFinancialPin
+    securityController.changeFinancialPin
 );
 
-// Get Financial Security Settings
+/* Get security information */
 router.get(
     "/",
     auth,
-    financialSecurityController.getFinancialSecurity
+    securityController.getFinancialSecurity
 );
 
-// Update Financial Settings
+/* Update security settings */
 router.patch(
     "/settings",
     auth,
-    financialSecurityController.updateSecuritySettings
+    securityController.updateSecuritySettings
 );
 
 export default router;

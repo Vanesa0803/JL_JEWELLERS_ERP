@@ -96,6 +96,7 @@ import authMiddleware from "./middleware/auth.js";
 import employeeRoutes from "./modules/hr/employee.routes.js";
 import departmentRoutes from "./modules/hr/department.routes.js";
 import attendanceRoutes from "./modules/hr/attendance.routes.js";
+import salaryRoutes from "./modules/hr/salary.routes.js";
 
 const app = express();
 
@@ -187,6 +188,7 @@ api.use("/settings", settingsRoutes);
 api.use("/employees", employeeRoutes);
 api.use("/departments", departmentRoutes);
 api.use("/attendance", attendanceRoutes);
+api.use("/salaries", salaryRoutes);
 
 api.use("/bills", billRoutes);
 api.use("/payments", paymentRoutes);
