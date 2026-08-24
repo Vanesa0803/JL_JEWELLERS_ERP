@@ -1,208 +1,204 @@
-import financialSecurityService from "./security.service.js";
+import securityService from "./security.service.js";
 
-const createFinancialPin = async (req, res) => {
+/* ------------------------------------------------------------------ */
+/* Helper                                                             */
+/* ------------------------------------------------------------------ */
 
+const resolveUserId = (req) => {
+    return (
+        req.user?.user_id ??
+        req.user?.id ??
+        req.body?.user_id
+    );
+};
+
+/* ------------------------------------------------------------------ */
+/* CREATE PIN                                                         */
+/* ------------------------------------------------------------------ */
+
+const createFinancialPin = async (
+    req,
+    res
+) => {
     try {
+        const userId =
+            resolveUserId(req);
 
         const { pin } = req.body;
 
-        await financialSecurityService.createFinancialPin(pin);
-
-        res.status(201).json({
-
-            success: true,
-
-            message: "Financial PIN created successfully."
-
-        });
-
-    }
-
-    catch (error) {
-
-        res.status(400).json({
-
-            success: false,
-
-            message: error.message
-
-        });
-
-    }
-
-};
-
-const verifyFinancialPin = async (req, res) => {
-
-    try {
-
-        const { pin } = req.body;
-
-        await financialSecurityService.verifyFinancialPin(pin);
-
-        res.status(200).json({
-
-            success: true,
-
-            message: "PIN verified successfully."
-
-        });
-
-    }
-
-    catch (error) {
-
-        res.status(400).json({
-
-            success: false,
-
-            message: error.message
-
-        });
-
-    }
-
-};
-
-const changeFinancialPin = async (req, res) => {
-
-    try {
-
-        const {
-
-            old_pin,
-
-            new_pin
-
-        } = req.body;
-
-        await financialSecurityService.changeFinancialPin(
-
-            old_pin,
-
-            new_pin
-
+        await securityService.createFinancialPin(
+            userId,
+            pin
         );
 
-        res.status(200).json({
-
+        return res.status(201).json({
             success: true,
-
-            message: "Financial PIN changed successfully."
-
+            statusCode: 201,
+            message:
+                "Financial PIN created successfully"
         });
-
-    }
-
-    catch (error) {
-
-        res.status(400).json({
-
+    } catch (error) {
+        return res.status(400).json({
             success: false,
-
+            statusCode: 400,
             message: error.message
-
         });
-
     }
-
 };
 
-const getFinancialSecurity = async (req, res) => {
+/* ------------------------------------------------------------------ */
+/* VERIFY PIN                                                         */
+/* ------------------------------------------------------------------ */
 
+const verifyFinancialPin = async (
+    req,
+    res
+) => {
     try {
+        const userId =
+            resolveUserId(req);
+
+        const { pin } = req.body;
+
+        await securityService.verifyFinancialPin(
+            userId,
+            pin
+        );
+
+        return res.status(200).json({
+            success: true,
+            statusCode: 200,
+            message:
+                "PIN verified successfully"
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            statusCode: 400,
+            message: error.message
+        });
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* CHANGE PIN                                                         */
+/* ------------------------------------------------------------------ */
+
+const changeFinancialPin = async (
+    req,
+    res
+) => {
+    try {
+        const userId =
+            resolveUserId(req);
+
+        const {
+            old_pin,
+            new_pin
+        } = req.body;
+
+        await securityService.changeFinancialPin(
+            userId,
+            old_pin,
+            new_pin
+        );
+
+        return res.status(200).json({
+            success: true,
+            statusCode: 200,
+            message:
+                "Financial PIN changed successfully"
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            statusCode: 400,
+            message: error.message
+        });
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* GET SECURITY                                                        */
+/* ------------------------------------------------------------------ */
+
+const getFinancialSecurity = async (
+    req,
+    res
+) => {
+    try {
+        const userId =
+            resolveUserId(req);
 
         const data =
-            await financialSecurityService.getFinancialSecurity();
+            await securityService.getFinancialSecurity(
+                userId
+            );
 
-        res.status(200).json({
-
+        return res.status(200).json({
             success: true,
-
-            data
-
+            statusCode: 200,
+            data,
+            message:
+                "Financial security retrieved successfully"
         });
-
-    }
-
-    catch (error) {
-
-        res.status(500).json({
-
+    } catch (error) {
+        return res.status(400).json({
             success: false,
-
+            statusCode: 400,
             message: error.message
-
         });
-
     }
-
 };
 
-const updateSecuritySettings = async (req, res) => {
+/* ------------------------------------------------------------------ */
+/* UPDATE SECURITY SETTINGS                                           */
+/* ------------------------------------------------------------------ */
 
+const updateSecuritySettings = async (
+    req,
+    res
+) => {
     try {
-
         const {
-
-            max_discount_percent,
-
-            max_rate_change_percent
-
+            max_failed_attempts,
+            lock_minutes
         } = req.body;
 
-        await financialSecurityService.updateSecuritySettings(
+        const data =
+            await securityService.updateSecuritySettings(
+                max_failed_attempts,
+                lock_minutes
+            );
 
-            max_discount_percent,
-
-            max_rate_change_percent
-
-        );
-
-        res.status(200).json({
-
+        return res.status(200).json({
             success: true,
-
-            message: "Security settings updated successfully."
-
+            statusCode: 200,
+            data,
+            message:
+                "Security settings updated successfully"
         });
-
-    }
-
-    catch (error) {
-
-        res.status(400).json({
-
+    } catch (error) {
+        return res.status(400).json({
             success: false,
-
+            statusCode: 400,
             message: error.message
-
         });
-
     }
-
 };
 
 export {
-
     createFinancialPin,
-
     verifyFinancialPin,
-
     changeFinancialPin,
-
     getFinancialSecurity,
-
     updateSecuritySettings
-
 };
 
-// Default export mirrors the named exports, so both
-// `import x from` and `import { a } from` work.
 export default {
     createFinancialPin,
     verifyFinancialPin,
     changeFinancialPin,
     getFinancialSecurity,
-    updateSecuritySettings,
+    updateSecuritySettings
 };

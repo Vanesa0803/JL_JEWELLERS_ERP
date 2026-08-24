@@ -1,37 +1,37 @@
-import express from "express";
+import { Router } from "express";
 
-const router = express.Router();
+import securityController from "./security.controller.js";
 
-import financialSecurityController from "./security.controller.js";
+const router = Router();
 
-// Create Financial PIN
+/* Create PIN */
 router.post(
     "/set-pin",
-    financialSecurityController.createFinancialPin
+    securityController.createFinancialPin
 );
 
-// Verify Financial PIN
+/* Verify PIN */
 router.post(
     "/verify-pin",
-    financialSecurityController.verifyFinancialPin
+    securityController.verifyFinancialPin
 );
 
-// Change Financial PIN
+/* Change PIN */
 router.patch(
     "/change-pin",
-    financialSecurityController.changeFinancialPin
+    securityController.changeFinancialPin
 );
 
-// Get Financial Security Settings
+/* Get security information */
 router.get(
     "/",
-    financialSecurityController.getFinancialSecurity
+    securityController.getFinancialSecurity
 );
 
-// Update Financial Settings
+/* Update security settings */
 router.patch(
     "/settings",
-    financialSecurityController.updateSecuritySettings
+    securityController.updateSecuritySettings
 );
 
 export default router;
