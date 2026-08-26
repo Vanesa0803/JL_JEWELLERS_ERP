@@ -2,6 +2,7 @@ import InventoryRepository from './inventory.repository.js';
 // Cross-module: stock movements are recorded against a product, so the
 // service confirms the product exists before touching inventory.
 import ProductRepository from '../products/product.repository.js';
+import notificationService from '../notifications/notification.service.js';
 import { ApiError } from '../../utils/ApiError.js';
 
 class InventoryService {
@@ -50,30 +51,59 @@ class InventoryService {
 
     async performStockOperation(data) {
         if (!data.product_id || !data.quantity || !data.movement_type) {
-            throw new ApiError(400, "product_id, quantity, and movement_type are required");
+            throw new ApiError(
+                400,
+                "product_id, quantity, and movement_type are required"
+            );
         }
 
         const product = await ProductRepository.findById(data.product_id);
-        if (!product) throw new ApiError(404, "Product not found");
 
-        const allowedTypes = ['Purchase', 'Sale', 'Return', 'Repair', 'Adjustment', 'Opening Stock', 'Transfer'];
+        if (!product) {
+            throw new ApiError(404, "Product not found");
+        }
+
+        const allowedTypes = [
+            'Purchase',
+            'Sale',
+            'Return',
+            'Repair',
+            'Adjustment',
+            'Opening Stock',
+            'Transfer'
+        ];
+
         if (!allowedTypes.includes(data.movement_type)) {
             throw new ApiError(400, "Invalid movement type");
         }
 
         // Validate stock logic
         let quantity_change = parseInt(data.quantity);
+
         if (data.action === 'OUT') {
             quantity_change = -Math.abs(quantity_change);
         } else if (data.action === 'IN') {
             quantity_change = Math.abs(quantity_change);
         }
 
-        const existingStock = await InventoryRepository.findStockRecord(data.product_id, data.variant_id);
+        const existingStock =
+            await InventoryRepository.findStockRecord(
+                data.product_id,
+                data.variant_id
+            );
+
         if (quantity_change < 0) {
-            const currentQty = existingStock ? existingStock.available_quantity : 0;
+
+            const currentQty =
+                existingStock
+                    ? Number(existingStock.available_quantity)
+                    : 0;
+
             if (currentQty + quantity_change < 0) {
-                throw new ApiError(400, "Insufficient stock for this operation");
+                throw new ApiError(
+                    400,
+                    "Insufficient stock for this operation"
+                );
             }
         }
 
@@ -86,8 +116,59 @@ class InventoryService {
             remarks: data.remarks
         };
 
-        await InventoryRepository.executeStockOperation(operationData);
-        return { success: true, message: "Stock operation completed successfully" };
+        // Perform the actual stock operation first.
+        await InventoryRepository.executeStockOperation(
+            operationData
+        );
+
+        /*
+        * LOW STOCK NOTIFICATION
+        *
+        * Re-read inventory AFTER the transaction succeeds.
+        * This ensures we check the actual resulting quantity.
+        */
+        const updatedStock =
+            await InventoryRepository.findStockRecord(
+                data.product_id,
+                data.variant_id
+            );
+
+        if (
+            updatedStock &&
+            Number(updatedStock.available_quantity) <=
+            Number(updatedStock.minimum_stock)
+        ) {
+
+            const userId = data.user_id;
+
+            if (userId) {
+
+                const productName =
+                    product.product_name ||
+                    product.name ||
+                    `Product #${data.product_id}`;
+
+                await notificationService.createNotification({
+
+                    user_id: userId,
+
+                    notification_type: "LOW_STOCK",
+
+                    title: "Low Stock Alert",
+
+                    message:
+                        `${productName} has only ` +
+                        `${updatedStock.available_quantity} units remaining. ` +
+                        `Minimum stock level is ` +
+                        `${updatedStock.minimum_stock}.`
+                });
+            }
+        }
+
+        return {
+            success: true,
+            message: "Stock operation completed successfully"
+        };
     }
 
     async getMovements(queryObj) {

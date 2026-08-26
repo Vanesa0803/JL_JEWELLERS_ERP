@@ -1,12 +1,21 @@
 import financialSecurityService from "./security.service.js";
+import financialSecurityModel from "./security.model.js";
 
 const verifyFinancialPin = async (req, res, next) => {
 
+    const userId = req.user?.user_id || null;
+
     try {
 
-        const { financial_pin } = req.body;
+        const { pin } = req.body;
 
-        if (!financial_pin) {
+        if (!pin) {
+
+            await financialSecurityModel.createPinLog(
+                userId,
+                "PIN_VERIFICATION",
+                "FAILED"
+            );
 
             return res.status(400).json({
 
@@ -19,16 +28,29 @@ const verifyFinancialPin = async (req, res, next) => {
         }
 
         await financialSecurityService.verifyFinancialPin(
-
-            financial_pin
-
+            pin
         );
+
+        await financialSecurityModel.createPinLog(
+            userId,
+            "PIN_VERIFICATION",
+            "SUCCESS"
+        );
+
+        req.financialPinVerified = true;
+        req.financialPinUserId = userId;
 
         next();
 
     }
 
     catch (error) {
+
+        await financialSecurityModel.createPinLog(
+            userId,
+            "PIN_VERIFICATION",
+            "FAILED"
+        );
 
         res.status(401).json({
 

@@ -1,4 +1,5 @@
 import connection from "../../config/db.js";
+import financeModel from "../finance/finance.model.js";
 
 const getSalesReport = (filters) => {
 
@@ -618,6 +619,63 @@ const getInventoryReport = (filters) => {
 };
 
 
+const getFinancialReport = async (filters = {}) => {
+
+    const fromDate = filters.from_date || null;
+    const toDate = filters.to_date || null;
+
+    const [
+        profitLoss,
+        cashFlow,
+        balanceSheet,
+        gstSummary,
+        outstandingPayables
+    ] = await Promise.all([
+
+        financeModel.getProfitLoss(
+            fromDate,
+            toDate
+        ),
+
+        financeModel.getCashFlow(
+            fromDate,
+            toDate
+        ),
+
+        financeModel.getBalanceSheet(
+            fromDate,
+            toDate
+        ),
+
+        financeModel.getGSTSummary(
+            fromDate,
+            toDate
+        ),
+
+        financeModel.getOutstandingPayables(
+            fromDate,
+            toDate
+        )
+
+    ]);
+
+    return {
+
+        profit_loss: profitLoss,
+
+        cash_flow: cashFlow,
+
+        balance_sheet: balanceSheet,
+
+        gst_summary: gstSummary,
+
+        outstanding_payables:
+            outstandingPayables
+
+    };
+
+};
+
 export {
 
     getSalesReport,
@@ -625,7 +683,8 @@ export {
     getCustomerReport,
     getLedgerReport,
     getPaymentReport,
-    getInventoryReport
+    getInventoryReport,
+    getFinancialReport
 
 };
 
@@ -638,4 +697,5 @@ export default {
     getLedgerReport,
     getPaymentReport,
     getInventoryReport,
+    getFinancialReport
 };

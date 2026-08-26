@@ -561,7 +561,7 @@ const getStockMovement = ()=>{
                 COALESCE(SUM(
                     CASE
                         WHEN movement_type='Sale'
-                        THEN quantity
+                        THEN ABS(quantity)
                         ELSE 0
                     END
                 ),0) AS sold_quantity,

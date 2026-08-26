@@ -36,6 +36,9 @@ import makerRoutes from "./modules/makers/maker.routes.js";
 import makerAssignmentRoutes from "./modules/makers/assignment.routes.js";
 import goldSchemeRoutes from "./modules/schemes/scheme.routes.js";
 import financialSecurityRoutes from "./modules/security/security.routes.js";
+import metalRateRoutes from "./modules/metalRates/metalRate.routes.js";
+import bankLedgerRoutes from "./modules/finance/bankLedger.routes.js";
+import notificationRoutes from "./modules/notifications/notification.routes.js";
 
 /* ------------------------------------------------------------------ *
  * Phase B — modules recovered from developer-purvansh.
@@ -188,6 +191,7 @@ api.use("/bills", billRoutes);
 api.use("/payments", paymentRoutes);
 api.use("/ledger", ledgerRoutes);
 api.use("/cashbook", cashBookRoutes);
+api.use("/bank-ledger", bankLedgerRoutes);
 api.use("/expenses", expenseRoutes);
 api.use("/income", incomeRoutes);
 api.use("/finance", financeRoutes);
@@ -200,6 +204,8 @@ api.use("/makers", makerRoutes);
 api.use("/maker-assignments", makerAssignmentRoutes);
 api.use("/gold-schemes", goldSchemeRoutes);
 api.use("/financial-security", financialSecurityRoutes);
+app.use("/api/metal-rates", metalRateRoutes);
+api.use("/notifications", notificationRoutes);
 
 // Phase B — masters
 api.use("/categories", categoryRoutes);

@@ -184,6 +184,39 @@ const getInventoryReport = async (req, res) => {
 
 };
 
+const getFinancialReport = async (req, res) => {
+
+    try {
+
+        const data =
+            await reportService.getFinancialReport(
+                req.query
+            );
+
+        res.json({
+
+            success: true,
+
+            data
+
+        });
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
 /*
  * exportPDF / exportExcel / exportCSV used to live here (S2-11).
  *
@@ -209,7 +242,9 @@ export {
 
     getPaymentReport,
 
-    getInventoryReport
+    getInventoryReport,
+
+    getFinancialReport
 
 };
 
@@ -222,4 +257,5 @@ export default {
     getLedgerReport,
     getPaymentReport,
     getInventoryReport,
+    getFinancialReport
 };

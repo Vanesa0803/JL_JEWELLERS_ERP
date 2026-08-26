@@ -31,6 +31,11 @@ router.get(
 
 router.get("/inventory", reportController.getInventoryReport);
 
+router.get(
+    "/financial",
+    reportController.getFinancialReport
+);
+
 /*
  * Exports live at /api/v1/export/{pdf,excel,csv}?report=<type>, not here.
  *

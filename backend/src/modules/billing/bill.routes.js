@@ -21,8 +21,8 @@ router.put("/:id", requireFinancialPinForCompletedBill, billController.updateBil
 
 router.put("/:bill_id/cancel", verifyFinancialPin, billController.cancelBill);
 
-router.put("/:id/status", billController.updateBillStatus);
+router.put("/:id/status", verifyFinancialPin, billController.updateBillStatus);
 
-router.delete("/:id", billController.deleteBill);
+router.delete("/:id", verifyFinancialPin, billController.deleteBill);
 
 export default router;

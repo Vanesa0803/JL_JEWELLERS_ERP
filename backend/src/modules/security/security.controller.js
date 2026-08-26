@@ -1,4 +1,5 @@
 import financialSecurityService from "./security.service.js";
+import financialSecurityModel from "./security.model.js";
 
 const createFinancialPin = async (req, res) => {
 
@@ -34,11 +35,37 @@ const createFinancialPin = async (req, res) => {
 
 const verifyFinancialPin = async (req, res) => {
 
+    const userId = req.user?.user_id || null;
+
     try {
 
         const { pin } = req.body;
 
+        if (!pin) {
+
+            await financialSecurityModel.createPinLog(
+                userId,
+                "PIN_VERIFICATION",
+                "FAILED"
+            );
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Financial PIN is required."
+
+            });
+
+        }
+
         await financialSecurityService.verifyFinancialPin(pin);
+
+        await financialSecurityModel.createPinLog(
+            userId,
+            "PIN_VERIFICATION",
+            "SUCCESS"
+        );
 
         res.status(200).json({
 
@@ -51,6 +78,12 @@ const verifyFinancialPin = async (req, res) => {
     }
 
     catch (error) {
+
+        await financialSecurityModel.createPinLog(
+            userId,
+            "PIN_VERIFICATION",
+            "FAILED"
+        );
 
         res.status(400).json({
 
@@ -144,27 +177,47 @@ const updateSecuritySettings = async (req, res) => {
     try {
 
         const {
-
             max_discount_percent,
-
             max_rate_change_percent
-
         } = req.body;
 
+        const maxDiscount = Number(max_discount_percent);
+        const maxRateChange = Number(max_rate_change_percent);
+
+        // Validate discount limit
+        if (
+            !Number.isFinite(maxDiscount) ||
+            maxDiscount < 0 ||
+            maxDiscount > 100
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Maximum discount percentage must be between 0 and 100."
+            });
+        }
+
+        // Validate rate change limit
+        if (
+            !Number.isFinite(maxRateChange) ||
+            maxRateChange < 0 ||
+            maxRateChange > 100
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Maximum rate change percentage must be between 0 and 100."
+            });
+        }
+
         await financialSecurityService.updateSecuritySettings(
-
-            max_discount_percent,
-
-            max_rate_change_percent
-
+            maxDiscount,
+            maxRateChange
         );
 
         res.status(200).json({
-
             success: true,
-
             message: "Security settings updated successfully."
-
         });
 
     }
@@ -172,11 +225,8 @@ const updateSecuritySettings = async (req, res) => {
     catch (error) {
 
         res.status(400).json({
-
             success: false,
-
             message: error.message
-
         });
 
     }
