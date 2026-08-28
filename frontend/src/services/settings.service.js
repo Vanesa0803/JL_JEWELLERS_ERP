@@ -72,18 +72,13 @@ export const updateBarcodeSettings = (data) => {
 // METAL RATES
 // =========================================================
 
-export const getMetalRates = () => {
-  return api.get("/settings/metal-rates");
+export const getMetalRate = (metalType) => {
+  return api.get(`/metal-rates/${metalType}`);
 };
 
-export const createMetalRate = (data) => {
-  return api.post("/settings/metal-rates", data);
+export const updateMetalRate = (data) => {
+  return api.post("/metal-rates/update", data);
 };
-
-export const updateMetalRate = (id, data) => {
-  return api.put(`/settings/metal-rates/${id}`, data);
-};
-
 
 // =========================================================
 // TAX
