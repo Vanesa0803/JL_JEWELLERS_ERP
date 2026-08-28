@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -17,86 +17,22 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-/* =========================================================
-   MOCK SUPPLIER DATA
-   Replace with backend API later.
-========================================================= */
+import {
+  getSuppliers,
+  createSupplier,
+} from "../../services/supplier.service";
 
-const initialSuppliers = [
-  {
-    supplier_id: 201,
-    supplier_code: "SUP-001",
-    supplier_name: "Shree Gold Suppliers",
-    contact_person: "Ramesh Patel",
-    mobile: "9876543210",
-    email: "shreegold@gmail.com",
-    supplier_type: "Wholesaler",
-    opening_balance: 125000,
-    status: "Active",
-  },
-  {
-    supplier_id: 202,
-    supplier_code: "SUP-002",
-    supplier_name: "Raj Jewellers Manufacturing",
-    contact_person: "Raj Mehta",
-    mobile: "9812345678",
-    email: "rajmanufacturing@gmail.com",
-    supplier_type: "Manufacturer",
-    opening_balance: 85000,
-    status: "Active",
-  },
-  {
-    supplier_id: 203,
-    supplier_code: "SUP-003",
-    supplier_name: "Kohinoor Distributors",
-    contact_person: "Amit Sharma",
-    mobile: "9898989898",
-    email: "kohinoor@gmail.com",
-    supplier_type: "Distributor",
-    opening_balance: 45000,
-    status: "Active",
-  },
-  {
-    supplier_id: 204,
-    supplier_code: "SUP-004",
-    supplier_name: "Sharma Local Vendors",
-    contact_person: "Neha Sharma",
-    mobile: "9765432109",
-    email: "sharmavendors@gmail.com",
-    supplier_type: "Local Vendor",
-    opening_balance: 22000,
-    status: "Inactive",
-  },
-  {
-    supplier_id: 205,
-    supplier_code: "SUP-005",
-    supplier_name: "Perfect Jewellery Services",
-    contact_person: "Karan Mehta",
-    mobile: "9988776655",
-    email: "perfectservices@gmail.com",
-    supplier_type: "Service Provider",
-    opening_balance: 18000,
-    status: "Active",
-  },
-  {
-    supplier_id: 206,
-    supplier_code: "SUP-006",
-    supplier_name: "Mohan Gold Works",
-    contact_person: "Mohan Gupta",
-    mobile: "9876123456",
-    email: "mohangold@gmail.com",
-    supplier_type: "Manufacturer",
-    opening_balance: 95000,
-    status: "Active",
-  },
-];
+
 
 /* =========================================================
    MAIN COMPONENT
 ========================================================= */
 
 const Suppliers = () => {
-  const [suppliers, setSuppliers] = useState(initialSuppliers);
+  const [suppliers, setSuppliers] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
@@ -105,6 +41,58 @@ const Suppliers = () => {
   const [sortBy, setSortBy] = useState("Newest");
 
   const [showActions, setShowActions] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+const [saving, setSaving] = useState(false);
+
+const emptyForm = {
+  supplier_name: "",
+  contact_person: "",
+  mobile: "",
+  alternate_mobile: "",
+  email: "",
+  gst_number: "",
+  pan_number: "",
+  address_line1: "",
+  address_line2: "",
+  city: "",
+  state: "",
+  country: "India",
+  pincode: "",
+  opening_balance: "",
+  supplier_type: "",
+  remarks: "",
+};
+
+const [form, setForm] = useState(emptyForm);
+const openAddForm = () => {
+  setForm(emptyForm);
+  setShowForm(true);
+  setError("");
+};
+
+  const fetchSuppliers = async () => {
+    
+  try {
+    setLoading(true);
+    setError("");
+
+    const response = await getSuppliers();
+
+    setSuppliers(response.data?.data?.suppliers || []);
+  } catch (err) {
+    console.error("Failed to fetch suppliers:", err);
+
+    setError(
+      err.response?.data?.message ||
+        "Unable to load suppliers."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+useEffect(() => {
+  fetchSuppliers();
+}, []);
 
   /* =========================================================
      STATS
@@ -202,6 +190,7 @@ const Suppliers = () => {
       );
     }
 
+   
     return result;
   }, [
     suppliers,
@@ -292,9 +281,10 @@ const Suppliers = () => {
         </div>
 
         <button
-          type="button"
-          className="flex items-center justify-center gap-2 rounded-xl bg-[#6F3E32] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5D332A]"
-        >
+  type="button"
+  onClick={openAddForm}
+  className="flex items-center justify-center gap-2 rounded-xl bg-[#6F3E32] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5D332A]"
+>
           <Plus size={18} />
           Add Supplier
         </button>
@@ -766,6 +756,152 @@ const Suppliers = () => {
 
       </section>
 
+      {/* =====================================================
+          ADD SUPPLIER MODAL
+      ===================================================== */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E7DED3] bg-white px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[#2B2622]">Add Supplier</h2>
+                <p className="mt-1 text-xs text-[#85786D]">Enter the supplier details below.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-xl text-[#85786D] hover:bg-[#F7F3EE]"
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (event) => {
+                event.preventDefault();
+
+                try {
+                  setSaving(true);
+                  setError("");
+
+                  const payload = {
+                    ...form,
+                    opening_balance:
+                      form.opening_balance === ""
+                        ? 0
+                        : Number(form.opening_balance),
+                  };
+
+                  await createSupplier(payload);
+
+                  setShowForm(false);
+                  setForm(emptyForm);
+                  await fetchSuppliers();
+                } catch (err) {
+                  console.error("Failed to create supplier:", err);
+                  setError(
+                    err.response?.data?.message ||
+                      "Unable to create supplier."
+                  );
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="space-y-6 p-6"
+            >
+              {error && (
+                <div className="rounded-xl border border-[#E8C8C2] bg-[#FDF3F1] px-4 py-3 text-sm text-[#8B3E32]">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Supplier Name" required value={form.supplier_name}
+                  onChange={(value) => setForm((prev) => ({ ...prev, supplier_name: value }))} />
+                <FormField label="Contact Person" required value={form.contact_person}
+                  onChange={(value) => setForm((prev) => ({ ...prev, contact_person: value }))} />
+                <FormField label="Mobile" required value={form.mobile}
+                  onChange={(value) => setForm((prev) => ({ ...prev, mobile: value }))} />
+                <FormField label="Alternate Mobile" value={form.alternate_mobile}
+                  onChange={(value) => setForm((prev) => ({ ...prev, alternate_mobile: value }))} />
+                <FormField label="Email" type="email" value={form.email}
+                  onChange={(value) => setForm((prev) => ({ ...prev, email: value }))} />
+                <FormField label="GST Number" value={form.gst_number}
+                  onChange={(value) => setForm((prev) => ({ ...prev, gst_number: value }))} />
+                <FormField label="PAN Number" value={form.pan_number}
+                  onChange={(value) => setForm((prev) => ({ ...prev, pan_number: value }))} />
+                <FormField label="Address Line 1" value={form.address_line1}
+                  onChange={(value) => setForm((prev) => ({ ...prev, address_line1: value }))} />
+                <FormField label="Address Line 2" value={form.address_line2}
+                  onChange={(value) => setForm((prev) => ({ ...prev, address_line2: value }))} />
+                <FormField label="City" value={form.city}
+                  onChange={(value) => setForm((prev) => ({ ...prev, city: value }))} />
+                <FormField label="State" value={form.state}
+                  onChange={(value) => setForm((prev) => ({ ...prev, state: value }))} />
+                <FormField label="Country" value={form.country}
+                  onChange={(value) => setForm((prev) => ({ ...prev, country: value }))} />
+                <FormField label="Pincode" value={form.pincode}
+                  onChange={(value) => setForm((prev) => ({ ...prev, pincode: value }))} />
+                <FormField label="Opening Balance" type="number" value={form.opening_balance}
+                  onChange={(value) => setForm((prev) => ({ ...prev, opening_balance: value }))} />
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
+                    Supplier Type <span className="text-[#8B3E32]">*</span>
+                  </label>
+                  <select
+                    required
+                    value={form.supplier_type}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, supplier_type: event.target.value }))
+                    }
+                    className="h-11 w-full rounded-xl border border-[#DED4CA] bg-white px-4 text-sm text-[#2B2622] outline-none focus:border-[#B8860B]"
+                  >
+                    <option value="">Select type</option>
+                    <option value="Manufacturer">Manufacturer</option>
+                    <option value="Wholesaler">Wholesaler</option>
+                    <option value="Distributor">Distributor</option>
+                    <option value="Local Vendor">Local Vendor</option>
+                    <option value="Service Provider">Service Provider</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">Remarks</label>
+                <textarea
+                  value={form.remarks}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, remarks: event.target.value }))
+                  }
+                  rows={3}
+                  className="w-full rounded-xl border border-[#DED4CA] bg-white px-4 py-3 text-sm text-[#2B2622] outline-none focus:border-[#B8860B]"
+                  placeholder="Optional remarks"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-[#E7DED3] pt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  disabled={saving}
+                  className="rounded-xl border border-[#DED4CA] px-5 py-3 text-sm font-semibold text-[#4B423C] hover:bg-[#F7F3EE] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-[#6F3E32] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5D332A] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save Supplier"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -817,6 +953,34 @@ const SummaryCard = ({
   );
 };
 
+
+
+/* =========================================================
+   FORM FIELD
+========================================================= */
+
+const FormField = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}) => {
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
+        {label} {required && <span className="text-[#8B3E32]">*</span>}
+      </label>
+      <input
+        type={type}
+        required={required}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-xl border border-[#DED4CA] bg-white px-4 text-sm text-[#2B2622] outline-none focus:border-[#B8860B]"
+      />
+    </div>
+  );
+};
 
 /* =========================================================
    SELECT FILTER

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
 
   server: {
-    port: 5173,
+    port: 5174,
 
     // Anything the app requests at /api/... is forwarded to the backend by the
     // dev server. The browser therefore only ever talks to localhost:5173, so

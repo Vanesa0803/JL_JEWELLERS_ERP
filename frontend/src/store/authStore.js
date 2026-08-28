@@ -32,11 +32,13 @@ const useAuthStore = create((set) => ({
   ...readSavedAuth(),
 
   login: (user, token) => {
+    console.log("MY AUTH TOKEN:", token);
+
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
 
     set({ user, token });
-  },
+},
 
   logout: () => {
     localStorage.removeItem("token");

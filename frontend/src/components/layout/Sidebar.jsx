@@ -12,8 +12,8 @@ import {
   Gem,
   LayoutDashboard,
   Package,
-  Settings,
-  ShoppingCart,
+Settings,
+ShoppingCart,
   Users,
   Wrench,
 } from "lucide-react";
@@ -63,6 +63,7 @@ const navigationItems = [
     path: "/gold-schemes",
     icon: Coins,
   },
+
   {
     label: "Inventory",
     path: "/inventory",
@@ -83,6 +84,13 @@ const navigationItems = [
     path: "/reports",
     icon: BarChart3,
   },
+
+{
+  label: "Employees",
+  path: "/employees",
+  icon: Users,
+},
+
   {
     label: "Notifications",
     path: "/notifications",

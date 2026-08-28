@@ -34,6 +34,16 @@ import Delivery from "../pages/orders/Delivery";
 
 import Payments from "../pages/payments/Payments";
 
+import Inventory from "../pages/inventory/Inventory";
+import StockMovements from "../pages/inventory/StockMovements";
+import Products from "../pages/products/Products";
+import Makers from "../pages/makers/Makers";
+import GoldSchemes from "../pages/goldSchemes/GoldSchemes";
+import Ledger from "../pages/ledger/Ledger";
+import Finance from "../pages/finance/Finance";
+import Employees from "../pages/employees/Employees";
+import Settings from "../pages/settings/Settings";
+import Reports from "../pages/reports/Reports";
 
 /* =========================================================
    PLACEHOLDER PAGE
@@ -286,58 +296,83 @@ const AppRouter = () => {
         ================================================= */}
 
         <Route
-          path="/makers"
-          element={
-            <Private>
-              <PlaceholderPage title="Makers / Karigars" />
-            </Private>
-          }
-        />
+  path="/makers"
+  element={
+    <Private>
+      <Makers />
+    </Private>
+  }
+/>
+
+       <Route
+  path="/gold-schemes"
+  element={
+    <Private>
+      <GoldSchemes />
+    </Private>
+  }
+/>
+        {/* =================================================
+            Inventory ERP MODULES
+        ================================================= */}
+
+  <Route
+  path="/inventory"
+  element={
+    <Private>
+      <Inventory />
+    </Private>
+  }
+/>
+
+<Route
+  path="/inventory/movements"
+  element={
+    <Private>
+      <StockMovements />
+    </Private>
+  }
+/>
+
+
 
         <Route
-          path="/gold-schemes"
-          element={
-            <Private>
-              <PlaceholderPage title="Gold Schemes" />
-            </Private>
-          }
-        />
+  path="/ledgers"
+  element={
+    <Private>
+      <Ledger />
+    </Private>
+  }
+/>
 
-        <Route
-          path="/inventory"
-          element={
-            <Private>
-              <PlaceholderPage title="Inventory" />
-            </Private>
-          }
-        />
+       <Route
+  path="/finance"
+  element={
+    <Private>
+      <Finance />
+    </Private>
+  }
+/>
 
-        <Route
-          path="/ledgers"
-          element={
-            <Private>
-              <PlaceholderPage title="Ledgers" />
-            </Private>
-          }
-        />
+ <Route
+  path="/reports"
+  element={
+    <Private>
+      <Reports />
+    </Private>
+  }
 
-        <Route
-          path="/finance"
-          element={
-            <Private>
-              <PlaceholderPage title="Finance" />
-            </Private>
-          }
-        />
+/>
 
-        <Route
-          path="/reports"
-          element={
-            <Private>
-              <PlaceholderPage title="Reports" />
-            </Private>
-          }
-        />
+
+<Route
+  path="/employees"
+  element={
+    <Private>
+      <Employees />
+    </Private>
+  }
+/>
 
         <Route
           path="/notifications"
@@ -349,13 +384,13 @@ const AppRouter = () => {
         />
 
         <Route
-          path="/settings"
-          element={
-            <Private>
-              <PlaceholderPage title="Settings" />
-            </Private>
-          }
-        />
+  path="/settings"
+  element={
+    <Private>
+      <Settings />
+    </Private>
+  }
+/>
 
 
         {/* =================================================
