@@ -205,7 +205,7 @@ api.use("/makers", makerRoutes);
 api.use("/maker-assignments", makerAssignmentRoutes);
 api.use("/gold-schemes", goldSchemeRoutes);
 api.use("/financial-security", financialSecurityRoutes);
-app.use("/api/metal-rates", metalRateRoutes);
+api.use("/metal-rates", metalRateRoutes);
 api.use("/notifications", notificationRoutes);
 
 // Phase B — masters
