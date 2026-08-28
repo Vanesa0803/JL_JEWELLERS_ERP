@@ -2,6 +2,7 @@ import express from "express";
 const router = express.Router();
 
 import paymentController from "./payment.controller.js";
+import verifyFinancialPin from "../security/verifyFinancialPin.js";
 
 router.post("/", paymentController.recordPayment);
 
@@ -9,7 +10,7 @@ router.post("/advance", paymentController.createAdvancePayment);
 
 router.post("/adjust-advance", paymentController.adjustAdvanceToBill);
 
-router.post("/refund", paymentController.createRefund);
+router.post("/refund", verifyFinancialPin, paymentController.createRefund);
 
 router.get("/pending/:bill_id", paymentController.getPendingPayment);
 

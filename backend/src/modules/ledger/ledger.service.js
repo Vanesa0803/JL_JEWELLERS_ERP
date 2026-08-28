@@ -1,10 +1,15 @@
 import ledgerModel from "./ledger.model.js";
 
-const createLedgerEntry = async (ledgerData) => {
+const createLedgerEntry = async (
+    ledgerData,
+    dbConnection
+) => {
 
-    const previousEntries = await ledgerModel.getCustomerLedger(
-        ledgerData.customer_id
-    );
+    const previousEntries =
+        await ledgerModel.getCustomerLedger(
+            ledgerData.customer_id,
+            dbConnection
+        );
 
     let previousBalance = 0;
 
@@ -19,37 +24,48 @@ const createLedgerEntry = async (ledgerData) => {
 
     }
 
-    const debit = Number(ledgerData.debit || 0);
-    const credit = Number(ledgerData.credit || 0);
+    const debit =
+        Number(ledgerData.debit || 0);
+
+    const credit =
+        Number(ledgerData.credit || 0);
 
     const newBalance =
         previousBalance + debit - credit;
 
-    await ledgerModel.createLedgerEntry({
+    await ledgerModel.createLedgerEntry(
+        {
+            customer_id:
+                ledgerData.customer_id,
 
-        customer_id: ledgerData.customer_id,
+            bill_id:
+                ledgerData.bill_id || null,
 
-        bill_id: ledgerData.bill_id || null,
+            transaction_type:
+                ledgerData.transaction_type,
 
-        transaction_type: ledgerData.transaction_type,
+            debit,
 
-        debit,
+            credit,
 
-        credit,
+            balance: newBalance,
 
-        balance: newBalance,
-
-        remarks: ledgerData.remarks || null
-
-    });
+            remarks:
+                ledgerData.remarks || null
+        },
+        dbConnection
+    );
 
     return {
 
-        customer_id: ledgerData.customer_id,
+        customer_id:
+            ledgerData.customer_id,
 
-        bill_id: ledgerData.bill_id,
+        bill_id:
+            ledgerData.bill_id,
 
-        transaction_type: ledgerData.transaction_type,
+        transaction_type:
+            ledgerData.transaction_type,
 
         debit,
 
@@ -57,7 +73,8 @@ const createLedgerEntry = async (ledgerData) => {
 
         balance: newBalance,
 
-        message: "Ledger entry created successfully."
+        message:
+            "Ledger entry created successfully."
 
     };
 

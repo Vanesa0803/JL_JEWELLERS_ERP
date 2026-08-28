@@ -36,6 +36,14 @@ const getInventoryReport = async (filters) => {
 
 };
 
+const getFinancialReport = async (filters) => {
+
+    return await reportModel.getFinancialReport(
+        filters
+    );
+
+};
+
 export {
 
     getSalesReport,
@@ -43,7 +51,8 @@ export {
     getCustomerReport,
     getLedgerReport,
     getPaymentReport,
-    getInventoryReport
+    getInventoryReport,
+    getFinancialReport
 
 };
 
@@ -56,4 +65,5 @@ export default {
     getLedgerReport,
     getPaymentReport,
     getInventoryReport,
+    getFinancialReport
 };

@@ -1,6 +1,9 @@
 import cashBookModel from "./cashbook.model.js";
 
-const createCashEntry = async (data) => {
+const createCashEntry = async (
+    data,
+    dbConnection
+) => {
 
     await cashBookModel.createEntry({
 
@@ -18,7 +21,7 @@ const createCashEntry = async (data) => {
 
         created_by: data.created_by || 1
 
-    });
+    }, dbConnection);
 
 };
 

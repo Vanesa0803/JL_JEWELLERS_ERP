@@ -79,10 +79,18 @@ export const allocateInvoiceNumber = (connection, callback) => {
         [fy],
         (updateError, updateResult) => {
           if (updateError) {
+            console.error("INVOICE UPDATE ERROR:", updateError);
             return callback(updateError);
           }
 
-          if (updateResult.affectedRows !== 1) {
+          console.log("INVOICE UPDATE RESULT:", {
+            affectedRows: updateResult.affectedRows,
+            changedRows: updateResult.changedRows,
+            message: updateResult.message,
+            fy
+          });
+
+          if (updateResult.affectedRows < 1) {
             return callback(
               new Error(`Could not allocate an invoice number for ${fy}`)
             );

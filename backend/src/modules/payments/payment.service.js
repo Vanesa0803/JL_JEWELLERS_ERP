@@ -2,8 +2,12 @@ import paymentModel from "./payment.model.js";
 import billModel from "../billing/bill.model.js";
 import ledgerService from "../ledger/ledger.service.js";
 import cashBookService from "../finance/cashbook.service.js";
+import bankLedgerService from "../finance/bankLedger.service.js";
+import auditService from "../audit/audit.service.js";
+import financialSecurityService from "../security/security.service.js";
+import { withTransaction } from "../../utils/withTransaction.js";
 
-const recordPayment = async (paymentData) => {
+const recordPayment = async (paymentData, actorId) => {
 
     // Check whether bill exists
     const bill = await paymentModel.getBillById(
@@ -87,7 +91,24 @@ const recordPayment = async (paymentData) => {
 
         paymentStatus = "Pending";
 
-    }   
+    }
+
+    for (const payment of paymentData.payments) {
+
+        if (payment.payment_method === "Bank Transfer") {
+
+            if (!payment.bank_account_id) {
+
+                throw new Error(
+                    "Bank account is required for Bank Transfer."
+                );
+
+            }
+
+        }
+
+    }
+
     // Create payment record
     const paymentResult = await paymentModel.createPayment({
 
@@ -101,7 +122,7 @@ const recordPayment = async (paymentData) => {
             paymentData.payment_type || "Bill Payment",
 
         created_by:
-            paymentData.created_by || null
+            actorId
 
     });
 
@@ -115,6 +136,31 @@ const recordPayment = async (paymentData) => {
         paymentData.payments
 
     );
+
+    for (const payment of paymentData.payments) {
+
+        if (payment.payment_method === "Bank Transfer") {
+
+            await bankLedgerService.createBankLedgerEntry({
+
+                bank_account_id:
+                    payment.bank_account_id,
+
+                transaction_type:
+                    "Credit",
+
+                amount:
+                    payment.amount,
+
+                description:
+                    "Bank Transfer Payment - Bill " +
+                    bill.bill_id
+
+            });
+
+        }
+
+    }
 
     const isCash = paymentData.payments.some(
         payment => payment.payment_method === "Cash"
@@ -140,7 +186,7 @@ const recordPayment = async (paymentData) => {
 
             remarks: "Bill Payment Received",
 
-            created_by: paymentData.created_by || 1
+            created_by: actorId
 
         });
 
@@ -160,6 +206,20 @@ const recordPayment = async (paymentData) => {
 
         remarks: "Bill Payment"
 
+    });
+
+    await auditService.createAuditLog({
+        userId: actorId,
+        tableName: "payments",
+        recordId: paymentId,
+        action: "PAYMENT",
+        oldData: null,
+        newData: {
+            bill_id: bill.bill_id,
+            amount: currentPaymentAmount,
+            payment_status: paymentStatus,
+            payments: paymentData.payments
+        }
     });
 
     // Update bill payment status
@@ -213,7 +273,7 @@ const getPendingPayment = async (billId) => {
     };
 
 };
-const createAdvancePayment = async (paymentData) => {
+const createAdvancePayment = async (paymentData, actorId) => {
 
     const allowedMethods = [
         "Cash",
@@ -234,7 +294,7 @@ const createAdvancePayment = async (paymentData) => {
         total_amount: paymentData.amount,
         payment_method: paymentData.payment_method,
         reference_number: paymentData.reference_number,
-        created_by: paymentData.created_by
+        created_by: actorId
 
     });
 
@@ -254,7 +314,7 @@ const createAdvancePayment = async (paymentData) => {
 
             remarks: "Advance Payment Received",
 
-            created_by: paymentData.created_by || 1
+            created_by: actorId
 
         });
 
@@ -275,6 +335,21 @@ const createAdvancePayment = async (paymentData) => {
         remarks: "Advance Payment"
 
     });
+
+    await auditService.createAuditLog({
+        userId: actorId,
+        tableName: "payments",
+        recordId: result.payment_id,
+        action: "ADVANCE_PAYMENT",
+        oldData: null,
+        newData: {
+            customer_id: paymentData.customer_id,
+            amount: Number(paymentData.amount),
+            payment_method: paymentData.payment_method,
+            reference_number: paymentData.reference_number
+        }
+    });
+
     return result;
 
 };
@@ -284,7 +359,7 @@ const getCustomerAdvance = async (customerId) => {
     return await paymentModel.getCustomerAdvance(customerId);
 };
 
-const adjustAdvanceToBill = async (billId, paymentId) => {
+const adjustAdvanceToBill = async (billId, paymentId, actorId) => {
 
     const bill = await paymentModel.getBillById(billId);
 
@@ -332,8 +407,23 @@ const adjustAdvanceToBill = async (billId, paymentId) => {
 
             total_amount: Number(advance.total_amount),
 
-            created_by: 1
+            created_by: actorId
 
+        });
+
+        await auditService.createAuditLog({
+            userId: actorId,
+            tableName: "payments",
+            recordId: adjustmentPayment.insertId,
+            action: "ADVANCE_ADJUSTMENT",
+            oldData: {
+                advance_payment_id: paymentId,
+                advance_amount: Number(advance.total_amount)
+            },
+            newData: {
+                bill_id: bill.bill_id,
+                adjusted_amount: Number(advance.total_amount)
+            }
         });
 
     await paymentModel.createPaymentDetails(
@@ -402,35 +492,37 @@ const adjustAdvanceToBill = async (billId, paymentId) => {
 
 };
 
-const createRefund = async (refundData) => {
+const createRefund = async (refundData, actorId) => {
 
+    // 1. Financial PIN is mandatory
+    if (!refundData.financial_pin) {
+
+        throw new Error(
+            "Financial PIN is required for refunds."
+        );
+
+    }
+
+    // 2. Verify PIN before opening the transaction
+    await financialSecurityService.verifyFinancialPin(
+        refundData.financial_pin
+    );
+
+    // 3. Get the payment
     const payment =
         await paymentModel.getPaymentById(
             refundData.payment_id
         );
 
     if (!payment) {
-        throw new Error("Payment not found.");
-    }
 
-    const alreadyRefunded =
-        await paymentModel.getTotalRefundedAmount(
-            payment.payment_id
+        throw new Error(
+            "Payment not found."
         );
 
-    const remainingRefund =
-        Number(payment.total_amount)
-
-        -
-
-        alreadyRefunded;    
-
-    if (!payment) {
-
-        throw new Error("Payment not found.");
-
     }
 
+    // 4. Only Bill Payments can be refunded
     if (payment.payment_type !== "Bill Payment") {
 
         throw new Error(
@@ -439,11 +531,29 @@ const createRefund = async (refundData) => {
 
     }
 
-    if (
-        Number(refundData.refund_amount)
-        >
-        Number(remainingRefund)
-    ) {
+    // 5. Calculate remaining refundable amount
+    const alreadyRefunded =
+        await paymentModel.getTotalRefundedAmount(
+            payment.payment_id
+        );
+
+    const remainingRefund =
+        Number(payment.total_amount) -
+        Number(alreadyRefunded);
+
+    const refundAmount =
+        Number(refundData.refund_amount);
+
+    // 6. Validate refund amount
+    if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+
+        throw new Error(
+            "Refund amount must be greater than zero."
+        );
+
+    }
+
+    if (refundAmount > remainingRefund) {
 
         throw new Error(
             "Refund amount exceeds remaining refundable balance."
@@ -451,100 +561,173 @@ const createRefund = async (refundData) => {
 
     }
 
-    await paymentModel.createRefund({
+    // 7. Perform ALL financial changes in ONE transaction
+    return await withTransaction(
+        async (tx, resolve, reject) => {
 
-        payment_id: refundData.payment_id,
+            try {
 
-        refund_amount: refundData.refund_amount,
+                // -------------------------------------------------
+                // A. Create refund
+                // -------------------------------------------------
 
-        refund_reason: refundData.refund_reason
+                await paymentModel.createRefund(
+                    {
+                        payment_id: refundData.payment_id,
+                        refund_amount: refundAmount,
+                        refund_reason: refundData.refund_reason
+                    },
+                    tx
+                );
 
-    });
 
-    const totalRefundAfterThis =
+                // -------------------------------------------------
+                // B. Update payment status
+                // -------------------------------------------------
 
-        alreadyRefunded
+                const totalRefundAfterThis =
+                    Number(alreadyRefunded) +
+                    refundAmount;
 
-        +
+                let paymentStatus = "Partial";
 
-        Number(refundData.refund_amount);
+                if (
+                    totalRefundAfterThis >=
+                    Number(payment.total_amount)
+                ) {
 
-    let paymentStatus = "Partial";
+                    paymentStatus = "Pending";
 
-    if (
-        totalRefundAfterThis >=
-        Number(payment.total_amount)
-    ){
-        paymentStatus = "Pending";
-    }
+                }
 
-    await paymentModel.updatePaymentStatus(
+                await paymentModel.updatePaymentStatus(
+                    payment.payment_id,
+                    paymentStatus,
+                    tx
+                );
 
-        payment.payment_id,
 
-        paymentStatus
+                // -------------------------------------------------
+                // C. Update bill payment status
+                // -------------------------------------------------
 
+                if (payment.bill_id) {
+
+                    await paymentModel.updateBillPaymentStatus(
+                        payment.bill_id,
+                        paymentStatus,
+                        tx
+                    );
+
+                }
+
+
+                // -------------------------------------------------
+                // D. Customer ledger
+                // -------------------------------------------------
+
+                await ledgerService.createLedgerEntry(
+                    {
+                        customer_id: payment.customer_id,
+                        bill_id: payment.bill_id,
+                        transaction_type: "Refund",
+                        debit: refundAmount,
+                        credit: 0,
+                        remarks: "Refund Issued"
+                    },
+                    tx
+                );
+
+
+                // -------------------------------------------------
+                // E. Cash book
+                // -------------------------------------------------
+
+                await cashBookService.createCashEntry(
+                    {
+                        transaction_type: "Cash Out",
+                        source: "Refund",
+                        reference_id: payment.payment_id,
+                        customer_id: payment.customer_id,
+                        amount: refundAmount,
+                        remarks: "Refund Issued",
+                        created_by: actorId
+                    },
+                    tx
+                );
+
+
+                // -------------------------------------------------
+                // F. Audit log
+                // -------------------------------------------------
+
+                await auditService.createAuditLog(
+                    {
+                        userId: actorId,
+                        tableName: "payments",
+                        recordId: refundData.payment_id,
+                        action: "REFUND",
+
+                        oldData: {
+                            payment_id: refundData.payment_id,
+                            refund_amount: Number(alreadyRefunded)
+                        },
+
+                        newData: {
+                            payment_id: refundData.payment_id,
+                            refund_amount: refundAmount,
+                            refund_reason:
+                                refundData.refund_reason
+                        }
+                    },
+                    tx
+                );
+
+
+                // -------------------------------------------------
+                // G. Commit everything
+                // -------------------------------------------------
+
+                tx.commit((commitError) => {
+
+                    if (commitError) {
+
+                        return tx.rollback(() => {
+                            reject(commitError);
+                        });
+
+                    }
+
+                    resolve({
+
+                        payment_id:
+                            payment.payment_id,
+
+                        refunded_amount:
+                            refundAmount,
+
+                        payment_status:
+                            paymentStatus,
+
+                        message:
+                            "Refund processed successfully."
+
+                    });
+
+                });
+
+            }
+
+            catch (error) {
+
+                tx.rollback(() => {
+                    reject(error);
+                });
+
+            }
+
+        }
     );
-
-    if (payment.bill_id) {
-
-        await paymentModel.updateBillPaymentStatus(
-
-            payment.bill_id,
-
-            paymentStatus
-
-        );
-
-    }
-
-    await ledgerService.createLedgerEntry({
-
-        customer_id: payment.customer_id,
-
-        bill_id: payment.bill_id,
-
-        transaction_type: "Refund",
-
-        debit: Number(refundData.refund_amount),
-
-        credit: 0,
-
-        remarks: "Refund Issued"
-
-    });
-
-    await cashBookService.createCashEntry({
-
-        transaction_type: "Cash Out",
-
-        source: "Refund",
-
-        reference_id: payment.payment_id,
-
-        customer_id: payment.customer_id,
-
-        amount: Number(refundData.refund_amount),
-
-        remarks: "Refund Issued",
-
-        created_by: 1
-
-    });
-
-    return {
-
-        payment_id: payment.payment_id,
-
-        refunded_amount: Number(
-            refundData.refund_amount
-        ),
-
-        payment_status: paymentStatus,
-
-        message: "Refund processed successfully."
-
-    };
 
 };
 

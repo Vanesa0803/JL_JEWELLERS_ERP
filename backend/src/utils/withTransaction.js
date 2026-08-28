@@ -32,35 +32,58 @@ import { callbackPool } from "../config/db.js";
  */
 export const withTransaction = (run) =>
   new Promise((outerResolve, outerReject) => {
+
     callbackPool.getConnection((connectionError, connection) => {
+
       if (connectionError) {
         return outerReject(connectionError);
       }
 
       let finished = false;
 
-      const finish = (settle) => (value) => {
+      const resolve = (value) => {
+
         if (finished) return;
+
         finished = true;
+
         connection.release();
-        settle(value);
+
+        outerResolve(value);
       };
 
-      const resolve = finish(outerResolve);
-      const reject = finish(outerReject);
+      const reject = (error) => {
+
+        if (finished) return;
+
+        finished = true;
+
+        connection.rollback(() => {
+          connection.release();
+          outerReject(error);
+        });
+      };
 
       connection.beginTransaction((transactionError) => {
+
         if (transactionError) {
           return reject(transactionError);
         }
 
         try {
+
           run(connection, resolve, reject);
+
         } catch (error) {
-          connection.rollback(() => reject(error));
+
+          reject(error);
+
         }
+
       });
+
     });
+
   });
 
 export default withTransaction;

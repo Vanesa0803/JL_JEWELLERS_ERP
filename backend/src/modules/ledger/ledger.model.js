@@ -1,6 +1,9 @@
 import connection from "../../config/db.js";
 
-const createLedgerEntry = (ledgerData) => {
+const createLedgerEntry = (
+    ledgerData,
+    dbConnection = connection
+) => {
 
     return new Promise((resolve, reject) => {
 
@@ -18,7 +21,7 @@ const createLedgerEntry = (ledgerData) => {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
 
-        connection.query(
+        dbConnection.query(
 
             query,
 
@@ -48,7 +51,7 @@ const createLedgerEntry = (ledgerData) => {
 
 };
 
-const getCustomerLedger = (customerId) => {
+const getCustomerLedger = (customerId, dbConnection = connection) => {
 
     return new Promise((resolve, reject) => {
 
@@ -59,7 +62,7 @@ const getCustomerLedger = (customerId) => {
             ORDER BY ledger_id ASC
         `;
 
-        connection.query(query, [customerId], (err, result) => {
+        dbConnection.query(query, [customerId], (err, result) => {
 
             if (err) {
                 return reject(err);

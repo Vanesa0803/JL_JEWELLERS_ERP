@@ -13,26 +13,67 @@ const getLowStock = asyncHandler(async (req, res) => {
 });
 
 const stockIn = asyncHandler(async (req, res) => {
-    const data = { ...req.body, action: 'IN' };
+    const data = {
+        ...req.body,
+        action: 'IN',
+        user_id: req.user.user_id
+    };
+
     const result = await InventoryService.performStockOperation(data);
-    return res.status(200).json(new ApiResponse(200, result, "Stock received successfully"));
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result,
+            "Stock received successfully"
+        )
+    );
 });
+
 
 const stockOut = asyncHandler(async (req, res) => {
-    const data = { ...req.body, action: 'OUT' };
+    const data = {
+        ...req.body,
+        action: 'OUT',
+        user_id: req.user.user_id
+    };
+
     const result = await InventoryService.performStockOperation(data);
-    return res.status(200).json(new ApiResponse(200, result, "Stock issued successfully"));
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result,
+            "Stock issued successfully"
+        )
+    );
 });
 
+
 const adjustStock = asyncHandler(async (req, res) => {
-    // Determine action based on quantity positive/negative
+
     let action = 'IN';
+
     if (parseInt(req.body.quantity) < 0) {
         action = 'OUT';
     }
-    const data = { ...req.body, action, movement_type: 'Adjustment' };
+
+    const data = {
+        ...req.body,
+        action,
+        movement_type: 'Adjustment',
+        user_id: req.user.user_id
+    };
+
     const result = await InventoryService.performStockOperation(data);
-    return res.status(200).json(new ApiResponse(200, result, "Stock adjusted successfully"));
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result,
+            "Stock adjusted successfully"
+        )
+    );
 });
 
 const getMovements = asyncHandler(async (req, res) => {

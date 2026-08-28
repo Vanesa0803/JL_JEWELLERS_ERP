@@ -1,11 +1,14 @@
 import db from "../../config/db.js";
 
-const createEntry = (data) => {
+const createEntry = (
+    data,
+    dbConnection = db
+) => {
 
     return new Promise((resolve, reject) => {
 
         const query = `
-            INSERT INTO cash_ledger
+            INSERT INTO cash_book
             (
                 transaction_type,
                 source,
@@ -18,7 +21,7 @@ const createEntry = (data) => {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
 
-        db.query(
+        dbConnection.query(
 
             query,
 
@@ -52,7 +55,7 @@ const getCashBookStatement = () => {
 
         const query = `
             SELECT *
-            FROM cash_ledger
+            FROM cash_book
             ORDER BY transaction_date ASC
         `;
 

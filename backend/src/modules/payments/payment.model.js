@@ -78,6 +78,7 @@ const createPaymentDetails = (paymentId, payments) => {
             (
                 payment_id,
                 payment_method,
+                bank_account_id,
                 amount,
                 reference_number
             )
@@ -90,6 +91,8 @@ const createPaymentDetails = (paymentId, payments) => {
 
             payment.payment_method,
 
+            payment.bank_account_id || null,
+
             payment.amount,
 
             payment.reference_number || null
@@ -97,11 +100,8 @@ const createPaymentDetails = (paymentId, payments) => {
         ]);
 
         connection.query(
-
             query,
-
             [values],
-
             (err, result) => {
 
                 if (err) {
@@ -111,7 +111,6 @@ const createPaymentDetails = (paymentId, payments) => {
                 resolve(result);
 
             }
-
         );
 
     });
@@ -120,7 +119,8 @@ const createPaymentDetails = (paymentId, payments) => {
 
 const updateBillPaymentStatus = (
     billId,
-    paymentStatus
+    paymentStatus,
+    dbConnection = connection
 ) => {
 
     return new Promise((resolve, reject) => {
@@ -131,12 +131,9 @@ const updateBillPaymentStatus = (
             WHERE bill_id = ?
         `;
 
-        connection.query(
-
+        dbConnection.query(
             query,
-
             [paymentStatus, billId],
-
             (err, result) => {
 
                 if (err) {
@@ -146,7 +143,6 @@ const updateBillPaymentStatus = (
                 resolve(result);
 
             }
-
         );
 
     });
@@ -289,10 +285,11 @@ const createAdvancePayment = (paymentData) => {
                     (
                         payment_id,
                         payment_method,
+                        bank_account_id,
                         amount,
                         reference_number
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                 `;
 
                 connection.query(
@@ -302,6 +299,7 @@ const createAdvancePayment = (paymentData) => {
                     [
                         paymentId,
                         paymentData.payment_method,
+                        paymentData.bank_account_id || null,
                         paymentData.total_amount,
                         paymentData.reference_number || null
                     ],
@@ -470,7 +468,10 @@ const getPaymentById = (paymentId) => {
 
 };
 
-const createRefund = (refundData) => {
+const createRefund = (
+    refundData,
+    dbConnection = connection
+) => {
 
     return new Promise((resolve, reject) => {
 
@@ -485,22 +486,14 @@ const createRefund = (refundData) => {
             VALUES (?, ?, ?, ?)
         `;
 
-        connection.query(
-
+        dbConnection.query(
             query,
-
             [
-
                 refundData.payment_id,
-
                 refundData.refund_amount,
-
                 refundData.refund_reason,
-
                 "Completed"
-
             ],
-
             (err, result) => {
 
                 if (err) {
@@ -510,7 +503,6 @@ const createRefund = (refundData) => {
                 resolve(result);
 
             }
-
         );
 
     });
@@ -519,7 +511,8 @@ const createRefund = (refundData) => {
 
 const updatePaymentStatus = (
     paymentId,
-    status
+    status,
+    dbConnection = connection
 ) => {
 
     return new Promise((resolve, reject) => {
@@ -530,12 +523,9 @@ const updatePaymentStatus = (
             WHERE payment_id = ?
         `;
 
-        connection.query(
-
+        dbConnection.query(
             query,
-
             [status, paymentId],
-
             (err, result) => {
 
                 if (err) {
@@ -545,7 +535,6 @@ const updatePaymentStatus = (
                 resolve(result);
 
             }
-
         );
 
     });

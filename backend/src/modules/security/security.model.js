@@ -36,6 +36,35 @@ const createFinancialPin = (pinHash) => {
 
 };
 
+const getFinancialSecurityWithHash = () => {
+
+    return new Promise((resolve, reject) => {
+
+        db.query(
+            `
+            SELECT
+                pin_id,
+                pin_hash,
+                created_at
+            FROM financial_pin
+            ORDER BY pin_id
+            LIMIT 1
+            `,
+            (err, rows) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(rows[0]);
+
+            }
+        );
+
+    });
+
+};
+
 const getFinancialSecurity = () => {
 
     return new Promise((resolve, reject) => {
@@ -43,7 +72,9 @@ const getFinancialSecurity = () => {
         db.query(
 
             `
-            SELECT *
+            SELECT
+                pin_id,
+                created_at
             FROM financial_pin
             ORDER BY pin_id
             LIMIT 1
@@ -52,9 +83,7 @@ const getFinancialSecurity = () => {
             (err, rows) => {
 
                 if (err) {
-
                     return reject(err);
-
                 }
 
                 resolve(rows[0]);
@@ -97,6 +126,34 @@ const updateFinancialPin = (pinHash) => {
 
             }
 
+        );
+
+    });
+
+};
+
+const getFinancialSettings = () => {
+
+    return new Promise((resolve, reject) => {
+
+        db.query(
+            `
+            SELECT
+                max_discount_percent,
+                max_rate_change_percent
+            FROM financial_settings
+            WHERE setting_id = 1
+            LIMIT 1
+            `,
+            (err, rows) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(rows[0]);
+
+            }
         );
 
     });
@@ -155,11 +212,49 @@ const updateSecuritySettings = (
 
 };
 
+const createPinLog = (userId, action, status) => {
+
+    return new Promise((resolve, reject) => {
+
+        const query = `
+            INSERT INTO pin_logs
+            (
+                user_id,
+                action,
+                status
+            )
+            VALUES (?, ?, ?)
+        `;
+
+        db.query(
+            query,
+            [userId, action, status],
+            (err, result) => {
+
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(result);
+
+            }
+        );
+
+    });
+
+};
+
 export {
 
     createFinancialPin,
 
     getFinancialSecurity,
+
+    getFinancialSecurityWithHash,
+
+    getFinancialSettings,
+
+    createPinLog,
 
     updateFinancialPin,
 
@@ -172,6 +267,9 @@ export {
 export default {
     createFinancialPin,
     getFinancialSecurity,
+    getFinancialSecurityWithHash,
+    getFinancialSettings,
+    createPinLog,
     updateFinancialPin,
-    updateSecuritySettings,
+    updateSecuritySettings
 };

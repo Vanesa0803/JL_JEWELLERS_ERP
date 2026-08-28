@@ -104,7 +104,7 @@ const login = async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: user.user_id,
+        user_id: user.user_id,
         role: user.role,
       },
       process.env.JWT_SECRET,
@@ -152,7 +152,7 @@ const getProfile = async (req, res) => {
   try {
     const [users] = await db.query(
       "SELECT user_id, name, email, role, status FROM users WHERE user_id = ?",
-      [req.user.id]
+      [req.user.user_id]
     );
 
     if (users.length === 0) {
@@ -222,7 +222,7 @@ const changePassword = async (req, res) => {
 
     const [users] = await db.query(
       "SELECT * FROM users WHERE user_id = ?",
-      [req.user.id]
+      [req.user.user_id]
     );
 
     if (users.length === 0) {

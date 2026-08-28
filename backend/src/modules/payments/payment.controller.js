@@ -5,7 +5,8 @@ const recordPayment = async (req, res) => {
     try {
 
         const result = await paymentService.recordPayment(
-            req.body
+            req.body,
+            req.user.user_id
         );
 
         res.status(201).json({
@@ -67,7 +68,8 @@ const createAdvancePayment = async (req, res) => {
 
         const result =
             await paymentService.createAdvancePayment(
-                req.body
+                req.body,
+                req.user.user_id
             );
 
         res.status(201).json({
@@ -136,7 +138,8 @@ const adjustAdvanceToBill = async (req, res) => {
         const result =
             await paymentService.adjustAdvanceToBill(
                 req.body.bill_id,
-                req.body.payment_id
+                req.body.payment_id,
+                req.user.user_id
             );
 
         res.json({
@@ -169,7 +172,8 @@ const createRefund = async (req, res) => {
 
         const result =
             await paymentService.createRefund(
-                req.body
+                req.body,
+                req.user.user_id
             );
 
         res.status(201).json({

@@ -25,7 +25,7 @@ const createFinancialPin = async (pin) => {
 const verifyFinancialPin = async (pin) => {
 
     const security =
-        await financialSecurityModel.getFinancialSecurity();
+        await financialSecurityModel.getFinancialSecurityWithHash();
 
     if (!security) {
 
@@ -52,7 +52,7 @@ const changeFinancialPin = async (
 ) => {
 
     const security =
-        await financialSecurityModel.getFinancialSecurity();
+        await financialSecurityModel.getFinancialSecurityWithHash();
 
     if (!security) {
 

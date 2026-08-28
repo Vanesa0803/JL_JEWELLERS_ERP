@@ -3,7 +3,7 @@ import billingService from "./bill.service.js";
 const createBill = async (req, res) => {
     try {
 
-        const result = await billingService.createBill(req.body);
+        const result = await billingService.createBill(req.body, req.user.user_id, req.body.financial_pin);
 
         res.status(201).json({
             success: true,
@@ -29,7 +29,11 @@ const updateBill = async (req, res) => {
 
             req.params.id,
 
-            req.body
+            req.body,
+
+            req.user.user_id,
+
+            req.body.financial_pin
 
         );
 
@@ -64,7 +68,8 @@ const cancelBill = async (req, res) => {
     try {
 
         const result = await billingService.cancelBill(
-            req.params.bill_id
+            req.params.bill_id,
+            req.user.user_id
         );
 
         res.status(200).json(result);
@@ -159,7 +164,9 @@ const updateBillStatus = async (req, res) => {
 
                 req.body.bill_status,
 
-                req.body.payment_status
+                req.body.payment_status,
+
+                req.user.user_id
 
             );
 
@@ -185,7 +192,7 @@ const deleteBill = async (req, res) => {
 
         const result = await billingService.deleteBill(
             req.params.id,
-            req.body.deleted_by
+            req.user.user_id
         );
 
         res.status(200).json({
