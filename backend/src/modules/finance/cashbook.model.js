@@ -8,7 +8,7 @@ const createEntry = (
     return new Promise((resolve, reject) => {
 
         const query = `
-            INSERT INTO cash_book
+            INSERT INTO cash_ledger
             (
                 transaction_type,
                 source,
@@ -55,7 +55,7 @@ const getCashBookStatement = () => {
 
         const query = `
             SELECT *
-            FROM cash_book
+            FROM cash_ledger
             ORDER BY transaction_date ASC
         `;
 
