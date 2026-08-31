@@ -42,6 +42,7 @@ import GoldSchemes from "../pages/goldSchemes/GoldSchemes";
 import Ledger from "../pages/ledger/Ledger";
 import Finance from "../pages/finance/Finance";
 import Employees from "../pages/employees/Employees";
+import Notifications from "../pages/notifications/Notifications";
 import Settings from "../pages/settings/Settings";
 import Reports from "../pages/reports/Reports";
 
@@ -204,13 +205,9 @@ const AppRouter = () => {
         />
 
         <Route
-          path="/orders/update"
-          element={
-            <Private>
-              <UpdateOrder />
-            </Private>
-          }
-        />
+  path="/orders/update/:id"
+  element={<UpdateOrder />}
+/>
 
         <Route
           path="/orders/cancel"
@@ -375,14 +372,15 @@ const AppRouter = () => {
 />
 
         <Route
-          path="/notifications"
-          element={
-            <Private>
-              <PlaceholderPage title="Notifications" />
-            </Private>
-          }
-        />
-
+  path="/notifications"
+  element={
+    <ProtectedRoute>
+      <DashboardLayout>
+        <Notifications />
+      </DashboardLayout>
+    </ProtectedRoute>
+  }
+/>
         <Route
   path="/settings"
   element={

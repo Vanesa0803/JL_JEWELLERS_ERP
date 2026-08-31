@@ -286,16 +286,17 @@ const GoldSchemes = () => {
       await fetchSchemes();
 
     } catch (err) {
-      console.error(
-        "Failed to save scheme:",
-        err
-      );
+  console.error("Failed to save scheme:", err);
 
-      setError(
-        err.response?.data?.message ||
-          "Unable to save scheme."
-      );
-    } finally {
+  console.log("BACKEND ERROR:", err.response?.data);
+
+  setError(
+    err.response?.data?.message ||
+      "Unable to save scheme."
+  );
+}
+    
+    finally {
       setSaving(false);
     }
   };
@@ -934,16 +935,15 @@ const GoldSchemes = () => {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
                   <SelectField
-                    label="Installment Type"
-                    name="installment_type"
-                    value={form.installment_type}
-                    onChange={handleChange}
-                    options={[
-                      "Monthly",
-                      "Weekly",
-                      "One Time",
-                    ]}
-                  />
+  label="Installment Type"
+  name="installment_type"
+  value={form.installment_type}
+  onChange={handleChange}
+  options={[
+    "Amount",
+    "Weight",
+  ]}
+/>
 
                   <FormField
                     label="Installment Amount"
@@ -1006,28 +1006,19 @@ const GoldSchemes = () => {
 
                 <div className="grid gap-4 sm:grid-cols-2">
 
+                  
+
                   <SelectField
-                    label="Bonus Type"
-                    name="bonus_type"
-                    value={form.bonus_type}
-                    onChange={handleChange}
-                    options={[
-                      "One Installment",
-                      "Percentage",
-                    ]}
-                    allowEmpty
-                  />
-
-                  <FormField
-                    label="Bonus Value"
-                    name="bonus_value"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.bonus_value}
-                    onChange={handleChange}
-                  />
-
+  label="Bonus Type"
+  name="bonus_type"
+  value={form.bonus_type}
+  onChange={handleChange}
+  options={[
+    "None",
+    "One Installment",
+    "Percentage",
+  ]}
+/>
                 </div>
 
               </div>

@@ -1,37 +1,28 @@
 import goldSchemeService from "./scheme.service.js";
 
 const createSchemeType = async (req, res) => {
-
     try {
+
+        console.log("CREATE SCHEME BODY:", req.body);
 
         const data =
             await goldSchemeService.createSchemeType(req.body);
 
         res.status(201).json({
-
             success: true,
-
-            message:
-                "Scheme type created successfully.",
-
+            message: "Scheme type created successfully.",
             data
-
         });
 
-    }
+    } catch (error) {
 
-    catch (error) {
+        console.error("CREATE SCHEME ERROR:", error);
 
         res.status(500).json({
-
             success: false,
-
             message: error.message
-
         });
-
     }
-
 };
 
 const getAllSchemeTypes = async (req, res) => {

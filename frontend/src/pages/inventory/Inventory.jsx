@@ -28,7 +28,7 @@ const Inventory = () => {
         limit: 100,
       });
 
-      setStock(response.data?.data?.stock || []);
+      setStock(response.data?.data?.rows || []);
     } catch (err) {
       console.error("Failed to fetch inventory:", err);
       setError("Unable to load inventory.");
@@ -48,7 +48,7 @@ const Inventory = () => {
 
       const response = await getProductById(productId);
 
-      setSelectedProduct(response.data?.data);
+      setSelectedProduct(response.data?.data?.rows);
     } catch (err) {
       console.error("Failed to fetch product:", err);
       setError("Unable to load product details.");

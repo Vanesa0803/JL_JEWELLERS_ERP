@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   getEmployees,
   getDepartments,
@@ -7,11 +8,19 @@ import {
   deleteEmployee,
 } from "../../services/employee.service";
 
+import {
+  getAttendance,
+  checkIn,
+  checkOut,
+} from "../../services/attendance.service";
+
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [attendance, setAttendance] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
@@ -29,15 +38,23 @@ const Employees = () => {
     department_id: "",
   });
 
+  /* =========================================================
+     LOAD EMPLOYEES + DEPARTMENTS + ATTENDANCE
+     ========================================================= */
+
   const loadData = async () => {
     try {
       setLoading(true);
 
-      const [employeeResponse, departmentResponse] =
-        await Promise.all([
-          getEmployees(),
-          getDepartments(),
-        ]);
+      const [
+        employeeResponse,
+        departmentResponse,
+        attendanceResponse,
+      ] = await Promise.all([
+        getEmployees(),
+        getDepartments(),
+        getAttendance(),
+      ]);
 
       const employeeData = Array.isArray(employeeResponse.data)
         ? employeeResponse.data
@@ -47,8 +64,13 @@ const Employees = () => {
         ? departmentResponse.data
         : departmentResponse.data?.data ?? [];
 
+      const attendanceData = Array.isArray(attendanceResponse.data)
+        ? attendanceResponse.data
+        : attendanceResponse.data?.data ?? [];
+
       setEmployees(employeeData);
       setDepartments(departmentData);
+      setAttendance(attendanceData);
     } catch (err) {
       console.error("HR API ERROR:", err);
 
@@ -56,7 +78,7 @@ const Employees = () => {
         err?.response?.data?.message ||
           err?.response?.data?.error ||
           err?.message ||
-          "Failed to load employees."
+          "Failed to load HR data."
       );
     } finally {
       setLoading(false);
@@ -66,6 +88,10 @@ const Employees = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  /* =========================================================
+     FORM HANDLING
+     ========================================================= */
 
   const handleChange = (e) => {
     setForm({
@@ -102,6 +128,10 @@ const Employees = () => {
     setShowModal(true);
   };
 
+  /* =========================================================
+     CREATE / UPDATE EMPLOYEE
+     ========================================================= */
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -136,6 +166,10 @@ const Employees = () => {
     }
   };
 
+  /* =========================================================
+     DELETE EMPLOYEE
+     ========================================================= */
+
   const handleDelete = async (employee) => {
     const confirmed = window.confirm(
       `Are you sure you want to delete ${employee.name}?`
@@ -157,6 +191,61 @@ const Employees = () => {
     }
   };
 
+  /* =========================================================
+     ATTENDANCE
+     ========================================================= */
+
+  const getEmployeeAttendance = (employeeId) => {
+    return attendance.find(
+      (record) =>
+        Number(record.employee_id) === Number(employeeId)
+    );
+  };
+
+  const handleCheckIn = async (employeeId) => {
+    try {
+      setAttendanceLoading(true);
+
+      await checkIn(employeeId);
+
+      await loadData();
+    } catch (err) {
+      console.error("CHECK-IN ERROR:", err);
+
+      alert(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          "Failed to check in employee."
+      );
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const handleCheckOut = async (employeeId) => {
+    try {
+      setAttendanceLoading(true);
+
+      await checkOut(employeeId);
+
+      await loadData();
+    } catch (err) {
+      console.error("CHECK-OUT ERROR:", err);
+
+      alert(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          "Failed to check out employee."
+      );
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  /* =========================================================
+     FILTER EMPLOYEES
+     ========================================================= */
+
   const filteredEmployees = employees.filter((employee) => {
     const searchValue = search.toLowerCase();
 
@@ -168,11 +257,13 @@ const Employees = () => {
 
     const matchesDepartment =
       !departmentFilter ||
-      String(employee.department_id) === String(departmentFilter);
+      String(employee.department_id) ===
+        String(departmentFilter);
 
     const matchesStatus =
       !statusFilter ||
-      employee.status?.toLowerCase() === statusFilter.toLowerCase();
+      employee.status?.toLowerCase() ===
+        statusFilter.toLowerCase();
 
     return (
       matchesSearch &&
@@ -180,6 +271,10 @@ const Employees = () => {
       matchesStatus
     );
   });
+
+  /* =========================================================
+     LOADING / ERROR
+     ========================================================= */
 
   if (loading) {
     return (
@@ -197,10 +292,15 @@ const Employees = () => {
     );
   }
 
+  /* =========================================================
+     UI
+     ========================================================= */
+
   return (
     <div className="space-y-6 p-6">
 
       {/* HEADER */}
+
       <div className="flex items-center justify-between">
 
         <div>
@@ -222,7 +322,9 @@ const Employees = () => {
 
       </div>
 
+
       {/* FILTERS */}
+
       <div className="flex flex-wrap gap-3">
 
         <input
@@ -235,10 +337,14 @@ const Employees = () => {
 
         <select
           value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
+          onChange={(e) =>
+            setDepartmentFilter(e.target.value)
+          }
           className="rounded-xl border border-[#E7DED3] bg-white px-4 py-2.5 text-sm text-[#4B423C] outline-none"
         >
-          <option value="">All Departments</option>
+          <option value="">
+            All Departments
+          </option>
 
           {departments.map((department) => (
             <option
@@ -252,22 +358,35 @@ const Employees = () => {
 
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) =>
+            setStatusFilter(e.target.value)
+          }
           className="rounded-xl border border-[#E7DED3] bg-white px-4 py-2.5 text-sm text-[#4B423C] outline-none"
         >
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="">
+            All Status
+          </option>
+
+          <option value="active">
+            Active
+          </option>
+
+          <option value="inactive">
+            Inactive
+          </option>
         </select>
 
       </div>
 
+
       {/* TABLE */}
+
       <div className="overflow-x-auto rounded-2xl border border-[#E7DED3] bg-white">
 
-        <table className="w-full min-w-[1100px]">
+        <table className="w-full min-w-[1250px]">
 
           <thead>
+
             <tr className="border-b border-[#E7DED3] bg-[#FCFAF8] text-left">
 
               <th className="px-5 py-4 text-xs font-semibold uppercase text-[#85786D]">
@@ -306,107 +425,247 @@ const Employees = () => {
                 Status
               </th>
 
+              {/* NEW */}
+
+              <th className="px-5 py-4 text-xs font-semibold uppercase text-[#85786D]">
+                Attendance
+              </th>
+
               <th className="px-5 py-4 text-xs font-semibold uppercase text-[#85786D]">
                 Actions
               </th>
 
             </tr>
+
           </thead>
+
 
           <tbody>
 
             {filteredEmployees.length === 0 ? (
+
               <tr>
+
                 <td
-                  colSpan="10"
+                  colSpan="11"
                   className="px-5 py-10 text-center text-sm text-[#85786D]"
                 >
                   No employees found.
                 </td>
+
               </tr>
+
             ) : (
-              filteredEmployees.map((employee) => (
 
-                <tr
-                  key={employee.employee_id}
-                  className="border-b border-[#F0E9E2] last:border-0 hover:bg-[#FCFAF8]"
-                >
+              filteredEmployees.map((employee) => {
 
-                  <td className="px-5 py-4 text-sm font-medium text-[#6F3E32]">
-                    #{employee.employee_id}
-                  </td>
+                const employeeAttendance =
+                  getEmployeeAttendance(
+                    employee.employee_id
+                  );
 
-                  <td className="px-5 py-4 text-sm font-semibold text-[#2B2622]">
-                    {employee.name}
-                  </td>
+                return (
 
-                  <td className="px-5 py-4 text-sm text-[#4B423C]">
-                    {employee.phone}
-                  </td>
+                  <tr
+                    key={employee.employee_id}
+                    className="border-b border-[#F0E9E2] last:border-0 hover:bg-[#FCFAF8]"
+                  >
 
-                  <td className="px-5 py-4 text-sm text-[#85786D]">
-                    {employee.email}
-                  </td>
+                    {/* ID */}
 
-                  <td className="px-5 py-4 text-sm text-[#4B423C]">
-                    {employee.department_name}
-                  </td>
+                    <td className="px-5 py-4 text-sm font-medium text-[#6F3E32]">
+                      #{employee.employee_id}
+                    </td>
 
-                  <td className="px-5 py-4 text-sm text-[#4B423C]">
-                    {employee.designation || "—"}
-                  </td>
 
-                  <td className="px-5 py-4 text-sm text-[#4B423C]">
-                    ₹{employee.salary}
-                  </td>
+                    {/* NAME */}
 
-                  <td className="px-5 py-4 text-sm text-[#85786D]">
-                    {employee.joining_date
-                      ? new Date(
-                          employee.joining_date
-                        ).toLocaleDateString()
-                      : "—"}
-                  </td>
+                    <td className="px-5 py-4 text-sm font-semibold text-[#2B2622]">
+                      {employee.name}
+                    </td>
 
-                  <td className="px-5 py-4">
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        employee.status?.toLowerCase() === "active"
-                          ? "bg-[#EAF4EC] text-[#397047]"
-                          : "bg-[#F5E8E5] text-[#8A493D]"
-                      }`}
-                    >
-                      {employee.status}
-                    </span>
+                    {/* PHONE */}
 
-                  </td>
+                    <td className="px-5 py-4 text-sm text-[#4B423C]">
+                      {employee.phone}
+                    </td>
 
-                  <td className="px-5 py-4">
 
-                    <div className="flex gap-2">
+                    {/* EMAIL */}
 
-                      <button
-                        onClick={() => openEditModal(employee)}
-                        className="rounded-lg border border-[#E7DED3] px-3 py-1.5 text-xs font-medium text-[#6F3E32] hover:bg-[#FCFAF8]"
+                    <td className="px-5 py-4 text-sm text-[#85786D]">
+                      {employee.email}
+                    </td>
+
+
+                    {/* DEPARTMENT */}
+
+                    <td className="px-5 py-4 text-sm text-[#4B423C]">
+                      {employee.department_name}
+                    </td>
+
+
+                    {/* DESIGNATION */}
+
+                    <td className="px-5 py-4 text-sm text-[#4B423C]">
+                      {employee.designation || "—"}
+                    </td>
+
+
+                    {/* SALARY */}
+
+                    <td className="px-5 py-4 text-sm text-[#4B423C]">
+                      ₹{employee.salary}
+                    </td>
+
+
+                    {/* JOINING DATE */}
+
+                    <td className="px-5 py-4 text-sm text-[#85786D]">
+                      {employee.joining_date
+                        ? new Date(
+                            employee.joining_date
+                          ).toLocaleDateString()
+                        : "—"}
+                    </td>
+
+
+                    {/* STATUS */}
+
+                    <td className="px-5 py-4">
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          employee.status?.toLowerCase() ===
+                          "active"
+                            ? "bg-[#EAF4EC] text-[#397047]"
+                            : "bg-[#F5E8E5] text-[#8A493D]"
+                        }`}
                       >
-                        Edit
-                      </button>
+                        {employee.status}
+                      </span>
 
-                      <button
-                        onClick={() => handleDelete(employee)}
-                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
+                    </td>
 
-                    </div>
 
-                  </td>
+                    {/* ATTENDANCE */}
 
-                </tr>
+                    <td className="px-5 py-4">
 
-              ))
+                      {!employeeAttendance ? (
+
+                        <button
+                          onClick={() =>
+                            handleCheckIn(
+                              employee.employee_id
+                            )
+                          }
+                          disabled={attendanceLoading}
+                          className="rounded-lg bg-[#397047] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2f5d3b] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Check In
+                        </button>
+
+                      ) : employeeAttendance.check_in &&
+                        !employeeAttendance.check_out ? (
+
+                        <div className="flex items-center gap-2">
+
+                          <span className="rounded-full bg-[#EAF4EC] px-3 py-1 text-xs font-medium text-[#397047]">
+                            Checked In
+                          </span>
+
+                          <button
+                            onClick={() =>
+                              handleCheckOut(
+                                employee.employee_id
+                              )
+                            }
+                            disabled={attendanceLoading}
+                            className="rounded-lg border border-[#E7DED3] px-3 py-1.5 text-xs font-medium text-[#6F3E32] hover:bg-[#FCFAF8] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Check Out
+                          </button>
+
+                        </div>
+
+                      ) : (
+
+                        <div>
+
+                          <span className="rounded-full bg-[#F1EDE8] px-3 py-1 text-xs font-medium text-[#85786D]">
+                            Completed
+                          </span>
+
+                          <div className="mt-1 text-xs text-[#85786D]">
+
+                            {employeeAttendance.check_in && (
+                              <>
+                                In:{" "}
+                                {new Date(
+                                  `1970-01-01T${employeeAttendance.check_in}`
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </>
+                            )}
+
+                            {employeeAttendance.check_out && (
+                              <>
+                                {" • Out: "}
+                                {new Date(
+                                  `1970-01-01T${employeeAttendance.check_out}`
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </>
+                            )}
+
+                          </div>
+
+                        </div>
+
+                      )}
+
+                    </td>
+
+
+                    {/* ACTIONS */}
+
+                    <td className="px-5 py-4">
+
+                      <div className="flex gap-2">
+
+                        <button
+                          onClick={() =>
+                            openEditModal(employee)
+                          }
+                          className="rounded-lg border border-[#E7DED3] px-3 py-1.5 text-xs font-medium text-[#6F3E32] hover:bg-[#FCFAF8]"
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleDelete(employee)
+                          }
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                );
+              })
+
             )}
 
           </tbody>
@@ -415,7 +674,9 @@ const Employees = () => {
 
       </div>
 
+
       {/* MODAL */}
+
       {showModal && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -425,6 +686,7 @@ const Employees = () => {
             <div className="mb-6 flex items-center justify-between">
 
               <div>
+
                 <h2 className="text-xl font-semibold text-[#2B2622]">
                   {editingEmployee
                     ? "Edit Employee"
@@ -434,10 +696,13 @@ const Employees = () => {
                 <p className="mt-1 text-sm text-[#85786D]">
                   Enter employee information.
                 </p>
+
               </div>
 
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() =>
+                  setShowModal(false)
+                }
                 className="text-xl text-[#85786D] hover:text-[#2B2622]"
               >
                 ×
@@ -445,12 +710,16 @@ const Employees = () => {
 
             </div>
 
+
             <form
               onSubmit={handleSubmit}
               className="space-y-4"
             >
 
+              {/* NAME */}
+
               <div>
+
                 <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
                   Name
                 </label>
@@ -462,9 +731,14 @@ const Employees = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-[#E7DED3] px-4 py-2.5 text-sm outline-none focus:border-[#6F3E32]"
                 />
+
               </div>
 
+
+              {/* EMAIL */}
+
               <div>
+
                 <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
                   Email
                 </label>
@@ -477,9 +751,14 @@ const Employees = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-[#E7DED3] px-4 py-2.5 text-sm outline-none focus:border-[#6F3E32]"
                 />
+
               </div>
 
+
+              {/* PHONE */}
+
               <div>
+
                 <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
                   Phone
                 </label>
@@ -491,9 +770,14 @@ const Employees = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-[#E7DED3] px-4 py-2.5 text-sm outline-none focus:border-[#6F3E32]"
                 />
+
               </div>
 
+
+              {/* SALARY */}
+
               <div>
+
                 <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
                   Salary
                 </label>
@@ -506,9 +790,14 @@ const Employees = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-[#E7DED3] px-4 py-2.5 text-sm outline-none focus:border-[#6F3E32]"
                 />
+
               </div>
 
+
+              {/* DEPARTMENT */}
+
               <div>
+
                 <label className="mb-1.5 block text-sm font-medium text-[#4B423C]">
                   Department
                 </label>
@@ -520,26 +809,36 @@ const Employees = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-[#E7DED3] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#6F3E32]"
                 >
+
                   <option value="">
                     Select Department
                   </option>
 
                   {departments.map((department) => (
+
                     <option
                       key={department.department_id}
                       value={department.department_id}
                     >
                       {department.department_name}
                     </option>
+
                   ))}
+
                 </select>
+
               </div>
+
+
+              {/* BUTTONS */}
 
               <div className="flex justify-end gap-3 pt-4">
 
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() =>
+                    setShowModal(false)
+                  }
                   className="rounded-xl border border-[#E7DED3] px-5 py-2.5 text-sm font-medium text-[#4B423C]"
                 >
                   Cancel

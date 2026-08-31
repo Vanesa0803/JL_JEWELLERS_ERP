@@ -14,6 +14,7 @@ import { toast } from "react-hot-toast";
 // services/api is the app's only axios instance: it attaches the auth token
 // and targets /api/v1 (S3-9).
 import api from "../../services/api";
+import { getProducts } from "../../services/product.service";
 
 /*
  * GST on gold jewellery: 3% on the metal, 5% on the making charge.
@@ -28,6 +29,8 @@ const GST_MAKING_PERCENT = 5;
 
 const CreateBill = () => {
   const [items, setItems] = useState([]);
+  const [products, setProducts] = useState([]);
+const [loadingProducts, setLoadingProducts] = useState(false);
 
   /* ============================
    * CUSTOMER SELECTION
@@ -50,11 +53,15 @@ const CreateBill = () => {
    * The server does the searching (it matches on first name, last name, mobile
    * and customer code), so this stays correct as the customer list grows.
    */
+     /*
+   * Debounced customer search.
+   */
   useEffect(() => {
     const query = customerQuery.trim();
 
     if (query.length < 2) {
       setCustomerResults([]);
+      setSearchingCustomers(false);
       return;
     }
 
@@ -64,16 +71,28 @@ const CreateBill = () => {
     const timer = setTimeout(async () => {
       try {
         const response = await api.get("/customers", {
-          params: { search: query, limit: 8, status: "Active" },
+          params: {
+            search: query,
+            limit: 8,
+            status: "Active",
+          },
         });
 
         if (!cancelled) {
-          setCustomerResults(response.data?.data?.customers ?? []);
+          setCustomerResults(
+            response.data?.data?.customers ?? []
+          );
         }
-      } catch {
-        if (!cancelled) setCustomerResults([]);
+      } catch (error) {
+        console.error("Customer search failed:", error);
+
+        if (!cancelled) {
+          setCustomerResults([]);
+        }
       } finally {
-        if (!cancelled) setSearchingCustomers(false);
+        if (!cancelled) {
+          setSearchingCustomers(false);
+        }
       }
     }, 300);
 
@@ -82,6 +101,55 @@ const CreateBill = () => {
       clearTimeout(timer);
     };
   }, [customerQuery]);
+
+  /*
+   * ============================
+   * PRODUCT LOADING
+   * ============================
+   */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProducts = async () => {
+      try {
+        setLoadingProducts(true);
+
+        const response = await getProducts({
+          page: 1,
+          limit: 100,
+        });
+
+        const productList =
+          response.data?.data?.products ??
+          response.data?.products ??
+          [];
+
+        console.log("Products loaded:", productList);
+
+        if (!cancelled) {
+          setProducts(productList);
+        }
+      } catch (error) {
+        console.error("Failed to load products:", error);
+
+        if (!cancelled) {
+          setProducts([]);
+          toast.error("Unable to load products");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingProducts(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [paymentAmount, setPaymentAmount] = useState("");
 
@@ -408,13 +476,16 @@ const CreateBill = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-xl border border-[#DCCFC3] px-3 py-2 text-sm font-medium text-[#6F3E32] transition hover:bg-[#F7F3EE]"
-          >
-            <UserPlus size={17} />
-            Add Customer
-          </button>
+         <button
+  type="button"
+  onClick={() => {
+    window.location.href = "/customers";
+  }}
+  className="flex items-center gap-2 rounded-xl border border-[#DCCFC3] px-3 py-2 text-sm font-medium text-[#6F3E32] transition hover:bg-[#F7F3EE]"
+>
+  <UserPlus size={17} />
+  Add Customer
+</button>
 
         </div>
 
@@ -680,24 +751,37 @@ const CreateBill = () => {
                       className="border-b border-[#F0E9E2] last:border-0"
                     >
 
-                      {/* Product */}
+                     {/* Product */}
 
-                      <td className="px-3 py-3">
+<td className="px-3 py-3">
 
-                       <input
-  type="number"
-  value={item.product_id}
-  onChange={(event) =>
-    updateItem(
-      item.id,
-      "product_id",
-      event.target.value
-    )
-  }
-  placeholder="Product ID"
-/>
+  <select
+    value={item.product_id}
+    onChange={(event) =>
+      updateItem(
+        item.id,
+        "product_id",
+        event.target.value
+      )
+    }
+    disabled={loadingProducts}
+    className="h-10 w-44 rounded-lg border border-[#DED4CA] bg-white px-3 text-sm outline-none focus:border-[#B8860B]"
+  >
+    <option value="">
+      {loadingProducts ? "Loading products..." : "Select product"}
+    </option>
 
-                      </td>
+    {products.map((product) => (
+      <option
+        key={product.product_id}
+        value={product.product_id}
+      >
+        {product.product_name}
+      </option>
+    ))}
+  </select>
+
+</td>
 
 
                       {/* Quantity */}

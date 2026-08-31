@@ -94,12 +94,39 @@ const resetFailedAttempts = async (userId) => {
 /* ------------------------------------------------------------------ */
 /* SECURITY SETTINGS                                                  */
 /* ------------------------------------------------------------------ */
+const getFinancialSettings = async () => {
+    const [rows] = await pool.execute(
+        `
+        SELECT
+            setting_id,
+            default_gst_metal,
+            default_gst_making,
+            default_making_charge,
+            max_discount_percent,
+            max_rate_change_percent,
+            invoice_prefix,
+            current_financial_year,
+            company_currency,
+            created_by,
+            updated_by,
+            created_at,
+            updated_at
+        FROM financial_settings
+        ORDER BY setting_id ASC
+        LIMIT 1
+        `
+    );
+
+    return rows[0] || null;
+};
+
+
 
 const getSecuritySettings = async () => {
     const [rows] = await pool.execute(
         `
         SELECT
-            setting_id,
+             setting_id,
             max_failed_attempts,
             lock_minutes,
             created_at,
@@ -166,6 +193,7 @@ export {
     updatePin,
     recordFailedAttempt,
     resetFailedAttempts,
+    getFinancialSettings,
     getSecuritySettings,
     updateSecuritySettings
 };
@@ -176,6 +204,7 @@ export default {
     updatePin,
     recordFailedAttempt,
     resetFailedAttempts,
+    getFinancialSettings,
     getSecuritySettings,
     updateSecuritySettings
 };
